@@ -1,3 +1,5 @@
-data\vangoghxml.zip
-data\sources.txt
-data\*.pdf
+data/*.pdf
+data/*.epub
+data/vangoghxml.zip
+data/sources.txt
+vangoghxml/
