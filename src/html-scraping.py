@@ -61,10 +61,10 @@ for letters_file in os.listdir(letters_path): # loop through files in dir
 						break # out of <p> loop
 					
 					else: # parts of letter body (<p class="name"> etc.)
-						letter_body += str(item.get_text())
+						letter_body += str(item.get_text()) + "\n"
 				
 				else: # <p>
-					letter_body += str(item.get_text())
+					letter_body += str(item.get_text()) + "\n"
 
 			# clean and assemble letter info
 			html_tag_regex = re.compile(r'<[^>]+>')
@@ -74,6 +74,11 @@ for letters_file in os.listdir(letters_path): # loop through files in dir
 			if len(letter_body.strip()) < 0:
 				print("ERROR: empty letter body :(")
 				exit()
+
+			if place is None or place == "[n.d.]":
+				place = "N/A"
+			if time is None or time == "[n.d.]":
+				time = "N/A"
 			
 			# add new line to dataframe
 			vw = vw.append({"id": id, "date": time, "receiver": receiver, "place": place, "text": letter_body}, ignore_index=True)
@@ -94,3 +99,4 @@ for letters_file in os.listdir(letters_path): # loop through files in dir
 print("DATAFRAME HEAD:")
 print(vw.head(40).to_string())
 print(vw.describe())
+vw.to_csv("vw_dataset.csv")
