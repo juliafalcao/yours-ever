@@ -42,8 +42,19 @@ def extract_year(full_date: str):
 
     return str(year)
 
+def fill_missing_years(df: pd.DataFrame):
+    missing = df[df["year"].isnull()][["id", "year"]]
 
-vw = pd.read_csv("vw_dataset.csv", index_col = "Unnamed: 0")
+    for i in list(missing.index):
+
+        if i > 0:
+            if df.at[i-1, "year"] == df.at[i+1, "year"]:
+                df.at[i, "year"] = df.at[i+1, "year"]
+
+    return df
+
+
+vw = pd.read_csv("data\\vw\\vw_dataset.csv", index_col = "Unnamed: 0")
 
 vw["date"] = vw["date"].apply(remove_brackets)
 vw["place"] = vw["place"].apply(remove_brackets)
@@ -52,15 +63,6 @@ vw["receiver"] = vw["receiver"].replace("V. Sackville-West", "Vita Sackville-Wes
 vw["length"] = vw["text"].apply(lambda text: len(text))
 
 vw["year"] = vw["date"].apply(extract_year)
+vw = fill_missing_years(vw)
 
-# ugly hardcoded replacements
-# TODO: get year from years of letters before and after the non-dated letter
-vw.at[3498, "year"] = "1938"
-vw.at[2588, "year"] = "1932"
-vw.at[3011, "year"] = "1935"
-vw.at[3022, "year"] = "1935"
-vw.at[2445, "year"] = "1931"
-vw.at[17, "year"] = "1898"
-
-
-# TODO: histogram of years x letter count
+print(vw.sample(30).to_string())
