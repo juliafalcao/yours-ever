@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import dateutil.parser as dateparser
 
-
 def remove_brackets(text: str):
     if pd.notnull(text):
         brackets = r'[\[\]]'
@@ -65,4 +64,12 @@ vw["length"] = vw["text"].apply(lambda text: len(text))
 vw["year"] = vw["date"].apply(extract_year)
 vw = fill_missing_years(vw)
 
-print(vw.sample(30).to_string())
+years = list(vw[vw["year"].notnull()]["year"])
+
+plt.hist(years, bins = len(set(years)), rwidth=0.8, color="lightseagreen", alpha=0.9, align="mid")
+plt.title("Amount of letters written by Virginia Woolf")
+plt.xlabel("Years")
+plt.ylabel("Letters")
+plt.xticks(list(range(0, 46, 5)))
+plt.savefig("graphs\\letters-per-year.png")
+plt.show()
