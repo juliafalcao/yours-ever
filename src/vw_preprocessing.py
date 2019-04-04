@@ -1,3 +1,8 @@
+"""
+pre-processing of virginia woolf's letters
+(to be generalized at some point)
+"""
+
 import pandas as pd
 import re
 import numpy as np
@@ -9,14 +14,16 @@ def remove_brackets(text: str):
         brackets = r'[\[\]]'
         return re.sub(brackets, "", text)
 
-def trim_receiver(receiver: str):
-    receiver = receiver.replace("\n", " ").replace("\r", " ")
-    receiver = re.sub(" +", " ", receiver)
 
-    if pd.notnull(receiver) and len(receiver) > 4 and receiver[:3] == "To ":
-        return receiver[3:]
+def trim_recipient(recipient: str):
+    recipient = recipient.replace("\n", " ").replace("\r", " ") # trailing whitespace
+    recipient = re.sub(" +", " ", recipient) # extra whitespace
+
+    if pd.notnull(recipient) and len(recipient) > 4 and recipient[:3] == "To ":
+        return recipient[3:]
     else:
-        return receiver
+        return recipient
+
 
 def extract_year(full_date: str):
     if pd.isnull(full_date):
@@ -41,35 +48,33 @@ def extract_year(full_date: str):
 
     return str(year)
 
+
 def fill_missing_years(df: pd.DataFrame):
     missing = df[df["year"].isnull()][["id", "year"]]
 
     for i in list(missing.index):
-
         if i > 0:
             if df.at[i-1, "year"] == df.at[i+1, "year"]:
                 df.at[i, "year"] = df.at[i+1, "year"]
 
     return df
 
+vw = pd.read_csv("data\\vw\\vw_from_epub.csv", index_col = "index")
 
-vw = pd.read_csv("data\\vw\\vw_dataset.csv", index_col = "Unnamed: 0")
-
-vw["date"] = vw["date"].apply(remove_brackets)
 vw["place"] = vw["place"].apply(remove_brackets)
-vw["receiver"] = vw["receiver"].apply(trim_receiver)
-vw["receiver"] = vw["receiver"].replace("V. Sackville-West", "Vita Sackville-West")
+vw["recipient"] = vw["recipient"].apply(trim_recipient)
+vw["recipient"] = vw["recipient"].apply(lambda r: r.replace("\xa0", " "))
+vw["recipient"] = vw["recipient"].replace("V. Sackville-West", "Vita Sackville-West") # ♡
 vw["length"] = vw["text"].apply(lambda text: len(text))
 
+vw["date"] = vw["date"].apply(remove_brackets)
 vw["year"] = vw["date"].apply(extract_year)
 vw = fill_missing_years(vw)
 
-years = list(vw[vw["year"].notnull()]["year"])
+# (...)
 
-plt.hist(years, bins = len(set(years)), rwidth=0.8, color="lightseagreen", alpha=0.9, align="mid")
-plt.title("Amount of letters written by Virginia Woolf")
-plt.xlabel("Years")
-plt.ylabel("Letters")
-plt.xticks(list(range(0, 46, 5)))
-plt.savefig("graphs\\letters-per-year.png")
-plt.show()
+print(vw.sample(20).to_string())
+print(vw.info())
+
+vw = vw[["id", "year", "recipient", "text", "length"]]
+vw.to_csv("data\\vw\\vw_preprocessed.csv", index_label="index")

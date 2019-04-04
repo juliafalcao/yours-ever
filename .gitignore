@@ -1,7 +1,5 @@
 .vscode/
-data/*.pdf
-data/*.epub
-data/vangoghxml.zip
-data/sources.txt
-vangoghxml/
+data/sources/
+data/vangogh/
 data/vw/letters/output/
+src/draft.py
