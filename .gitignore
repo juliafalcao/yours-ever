@@ -1,5 +1,6 @@
 .vscode/
 data/sources/
 data/vangogh/
-data/vw/letters/output/
+data/vw/letters/
+data/vw/letters/output
 src/draft.py
