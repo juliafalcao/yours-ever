@@ -14,8 +14,9 @@ plt.hist(years, bins = len(set(years)), rwidth=0.8, color="lightseagreen", alpha
 plt.title("Amount of letters written by Virginia Woolf")
 plt.xlabel("Years")
 plt.ylabel("Letters")
-plt.xticks(list(range(0, 46, 5)))
 plt.savefig("graphs\\letters-per-year.png")
+plt.cla()
+plt.clf()
 
 years = vw[vw["year"].notnull()][["year"]]
 years = years.groupby(["year"]).size()
@@ -28,3 +29,7 @@ recs = recs.groupby(["recipient"]).size()
 recs = recs.sort_values(ascending=False)
 print("\nTOP RECIPIENTS (20+ letters):")
 print(recs[recs >= 20].to_string())
+
+# average length
+avg_length = np.average(vw["length"])
+print(f"\nAVERAGE LENGTH OF LETTERS: {int(avg_length)} characters")

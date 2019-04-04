@@ -14,6 +14,11 @@ def remove_brackets(text: str):
         brackets = r'[\[\]]'
         return re.sub(brackets, "", text)
 
+def remove_dashes(text: str):
+    if pd.notnull(text):
+        dashes = r'[-—]'
+        return re.sub(dashes, "", text)
+
 
 def trim_recipient(recipient: str):
     recipient = recipient.replace("\n", " ").replace("\r", " ") # trailing whitespace
@@ -73,7 +78,7 @@ vw = fill_missing_years(vw)
 
 # (...)
 
-print(vw.sample(20).to_string())
+# print(vw.sample(20).to_string())
 print(vw.info())
 
 vw = vw[["id", "year", "recipient", "text", "length"]]
