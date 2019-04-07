@@ -1,9 +1,14 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import nltk
+from typing import List
 
 pd.set_option('precision', 0)
 
+"""
+from basic preprocessed text
+"""
 vw = pd.read_csv("data\\vw\\vw_preprocessed.csv", index_col="index")
 print("DATAFRAME SAMPLE:")
 print(vw.sample(10).to_string())
@@ -33,3 +38,21 @@ print(recs[recs >= 20].to_string())
 # average length
 avg_length = np.average(vw["length"])
 print(f"\nAVERAGE LENGTH OF LETTERS: {int(avg_length)} characters")
+
+print(vw.sort_values(by="length", ascending=False))
+
+
+"""
+from tokenized text
+"""
+vw = pd.read_json("data\\vw\\vw_tokenized.json")
+print(vw.sample(20).to_string())
+
+# word frequency
+letters = vw["text"].to_list()
+all_words = [word for letter in letters for word in letter]
+word_freq = nltk.FreqDist(all_words)
+plt.ion()
+word_freq.plot(40, cumulative=False, title="Most frequent words (after preprocessing)")
+plt.savefig("graphs\\word_frequency.png")
+plt.ioff()
