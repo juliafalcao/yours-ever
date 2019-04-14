@@ -2,13 +2,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import nltk
-from typing import List
+from wordcloud import WordCloud
 
 pd.set_option('precision', 0)
 
 """
 from basic preprocessed text
 """
+
 vw = pd.read_csv("data\\vw\\vw_preprocessed.csv", index_col="index")
 print("DATAFRAME SAMPLE:")
 print(vw.sample(10).to_string())
@@ -19,7 +20,7 @@ plt.hist(years, bins = len(set(years)), rwidth=0.8, color="lightseagreen", alpha
 plt.title("Amount of letters written by Virginia Woolf")
 plt.xlabel("Years")
 plt.ylabel("Letters")
-plt.savefig("graphs\\letters-per-year.png")
+plt.savefig("graphs\\letters_per_year.png")
 plt.cla()
 plt.clf()
 
@@ -45,8 +46,16 @@ print(vw.sort_values(by="length", ascending=False))
 """
 from tokenized text
 """
+
+def concat_all_letters(letters_series): # pass series of letters as lists of tokens
+	series = letters_series.apply(lambda letter: " ".join(letter))
+	all_letters = series.str.cat(sep=" ")
+
+	return all_letters
+
+
 vw = pd.read_json("data\\vw\\vw_tokenized.json")
-print(vw.sample(20).to_string())
+# print(vw.sample(20).to_string())
 
 # word frequency
 letters = vw["text"].to_list()
@@ -54,5 +63,16 @@ all_words = [word for letter in letters for word in letter]
 word_freq = nltk.FreqDist(all_words)
 plt.ion()
 word_freq.plot(40, cumulative=False, title="Most frequent words (after preprocessing)")
-plt.savefig("graphs\\word_frequency.png")
+plt.savefig("graphs\\word_frequency_hist.png")
 plt.ioff()
+
+# word clouds per year
+years = sorted(set(vw[vw["year"].notnull()]["year"]))
+
+for year in years:
+	letters = concat_all_letters(vw[vw["year"] == year]["text"])
+	wordcloud = WordCloud(width=500, height=400, background_color="white", max_words=100).generate(letters)
+	plt.imshow(wordcloud, interpolation="bilinear")
+	plt.axis("off")
+	plt.savefig(f"graphs\\word_clouds\\wordcloud_{int(year)}.png")
+	
