@@ -23,12 +23,14 @@ plt.title("Amount of letters written by Virginia Woolf")
 plt.xlabel("Years")
 plt.ylabel("Letters")
 # plt.savefig("graphs/letters_per_year.png")
-plt.clf()
+# plt.clf()
 
 years = vw[vw["year"].notnull()][["year"]]
 years = years.groupby(["year"]).size()
-# print("\nAMOUNT OF LETTERS SENT PER YEAR:")
+print("\nAMOUNT OF LETTERS SENT PER YEAR:")
 # print(years.to_string())
+avg_letters_per_year = np.average(years)
+# print(f"AVERAGE LETTERS PER YEAR: {avg_letters_per_year} letters")
 
 # amount of letters per recipient
 recs = vw[vw["recipient"].notnull()][["recipient"]]
@@ -39,7 +41,7 @@ recs = recs.sort_values(ascending=False)
 
 # average length
 avg_length = np.average(vw["length"])
-# print(f"\nAVERAGE LENGTH OF LETTERS: {int(avg_length)} characters")
+print(f"\nAVERAGE LENGTH OF LETTERS: {int(avg_length)} characters")
 # print(vw.sort_values(by="length", ascending=False))
 
 
@@ -61,23 +63,19 @@ vw = pd.read_json("data/vw/vw_tokenized.json")
 letters = vw["text"].to_list()
 all_words = [word for letter in letters for word in letter]
 word_freq = nltk.FreqDist(all_words)
-plt.ion()
-word_freq.plot(40, cumulative=False, title="Most frequent words (after preprocessing)")
-plt.savefig("graphs/word_frequency_hist.png")
-plt.ioff()
+# plt.ion()
+# word_freq.plot(40, cumulative=False, title="Most frequent words (after preprocessing)")
+# plt.savefig("graphs/word_frequency_hist.png")
+# plt.ioff()
 
 # word clouds per year
-"""
 years = sorted(set(vw[vw["year"].notnull()]["year"]))
-
-for year in years:
-	letters = concat_all_letters(vw[vw["year"] == year]["text"])
-	wordcloud = WordCloud(width=500, height=400, background_color="white", max_words=100).generate(letters)
-	plt.imshow(wordcloud, interpolation="bilinear")
-	plt.axis("off")
-	plt.savefig(f"graphs/word_clouds/wordcloud_{int(year)}.png")
-"""
-plt.clf()
+letters = concat_all_letters(vw["text"])
+wordcloud = WordCloud(width=500, height=400, background_color="white", max_words=100).generate(letters)
+plt.imshow(wordcloud, interpolation="bilinear")
+plt.axis("off")
+# plt.savefig(f"graphs/word_clouds/wordcloud.png")
+# plt.clf()
 
 """
 TF-IDF experiments
@@ -110,5 +108,5 @@ for y in range(len(yvw)):
 	plt.imshow(wordcloud, interpolation="bilinear")
 	plt.axis("off")
 	year = yvw.at[y, "year"]
-	plt.savefig(f"graphs/tfidf/tfidf_wordcloud_{year}.png")
+	plt.savefig(f"graphs/tfidf/tfidf_wordcloud_{int(year)}.png")
 	plt.clf()
