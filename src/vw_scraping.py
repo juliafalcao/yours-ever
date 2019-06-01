@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 html scraping to obtain content and info of virginia woolf's letters
 """
@@ -7,7 +9,7 @@ from bs4 import BeautifulSoup as bs
 from bs4 import NavigableString
 import pandas as pd
 
-export_path = "data\\vw\\letters\\output"
+export_path = "data\\vw\\output"
 letters_path = "data\\vw\\letters"
 
 vw = pd.DataFrame({"id": [], "date": [], "recipient": [], "place": [], "text": []})
@@ -62,10 +64,10 @@ for letters_file in os.listdir(letters_path): # loop through html files in dir
 						break # out of <p> loop
 					
 					else: # parts of letter body (<p class="name"> etc.)
-						letter_body += str(item.get_text()) + "\n"
-				
+						letter_body += f"§ {str(item.get_text())}\n"
+
 				else: # <p> parts of letter body
-					letter_body += str(item.get_text()) + "\n"
+					letter_body += f"§ {str(item.get_text())}\n"
 
 
 			# clean and assemble letter info

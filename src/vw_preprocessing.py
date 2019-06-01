@@ -21,7 +21,7 @@ def remove_brackets(text: str):
 def remove_non_alphabetic(text: str):
 	if pd.notnull(text):
 		to_replace = r'[\-—\+\n]' # symbols to replace with spaces
-		to_remove = r'[^a-zA-Z ]' # remove all non alphabetic symbols left
+		to_remove = r'[^a-zA-Z§ ]' # remove all symbols left except for §
 		text = re.sub(to_replace, " ", text)
 		text = re.sub(to_remove, "", text)
 		text = re.sub(r' +', " ", text) # remove extra whitespace
@@ -120,8 +120,11 @@ vw["text"] = vw["text"].apply(lambda letter: lemmatize(letter, wnl))
 
 
 print(vw.sample(20).to_string())
+
 print(vw.info())
 
-vw[["year", "recipient", "text"]].to_json("data\\vw\\vw_tokenized.json")
+with open("data\\vw\\vw_tokenized.json", "w", encoding="utf-8") as json_file:
+	vw[["year", "recipient", "text"]].to_json(json_file, force_ascii=False)
+
 print("VW exported to 'data\\vw\\vw_tokenized.json'.")
 # json unlike csv can handle lists as cell types (the token lists)
