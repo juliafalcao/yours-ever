@@ -3,4 +3,5 @@ data/sources/
 data/vangogh/
 data/vw/letters/
 data/vw/letters/output
+src/__pycache__/
 src/draft.py

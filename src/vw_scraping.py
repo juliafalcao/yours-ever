@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
 """
-html scraping to obtain content and info of virginia woolf's letters
+html scraping to obtain content and info of virginia woolf's letters from epub book
 """
 
+from const import *
 import codecs, os, re
 from bs4 import BeautifulSoup as bs
 from bs4 import NavigableString
@@ -91,11 +92,13 @@ for letters_file in os.listdir(letters_path): # loop through html files in dir
 
 
 	# export letter body (for validation purposes)
+	"""
 	out_all_files = f"{export_path}\\letters.txt"
 	file = codecs.open(out_all_files, mode="a+", encoding="utf-8")
 	file.write(letter_body)
 	file.write("\n--------------\n")
 	file.close()
+	"""
 
 	print(f"Finished reading '{letters_file}'.")
 	print(f"Added {count_per_file} letters to dataframe.")
@@ -105,4 +108,9 @@ print("DATAFRAME SAMPLE:")
 print(vw.sample(30).to_string())
 print("INFO:")
 print(vw.info())
-vw.to_csv("data\\vw\\vw_from_epub.csv", index_label = "index")
+vw.to_csv(RAW, index_label = "index")
+print(f"Raw letters dataframe successfully written to {RAW}.")
+
+"""
+split raw letters into paragraphs and store them
+"""

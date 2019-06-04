@@ -8,13 +8,14 @@ from wordcloud import WordCloud
 from sklearn.feature_extraction.text import TfidfVectorizer
 import json
 from scipy.sparse import csr_matrix
+from const import *
 
 pd.set_option('precision', 0)
 
 """
 from basic preprocessed text
 """
-vw = pd.read_csv("data/vw/vw_preprocessed.csv", index_col="index")
+vw = pd.read_csv(PREPROCESSED, index_col="index")
 # print("DATAFRAME SAMPLE:")
 # print(vw.sample(10).to_string())
 
@@ -58,7 +59,7 @@ def concat_all_letters(letters_series): # pass series of letters as lists of tok
 	return all_letters
 
 
-vw = pd.read_json("data/vw/vw_tokenized.json")
+vw = pd.read_json(TOKENIZED, orient="index")
 # print(vw.sample(20).to_string())
 
 # word frequency
