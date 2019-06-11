@@ -108,8 +108,8 @@ print("DATAFRAME SAMPLE:")
 print(vw.sample(30).to_string())
 print("INFO:")
 print(vw.info())
-vw.to_csv(RAW, index_label = "index")
-print(f"Raw letters dataframe successfully written to {RAW}.")
+vw.to_csv(VW_RAW, index_label = "index")
+print(f"Raw letters dataframe successfully written to {VW_RAW}.")
 
 """
 split raw letters into paragraphs and store them

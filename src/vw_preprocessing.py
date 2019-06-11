@@ -84,10 +84,9 @@ def fill_missing_years(df: pd.DataFrame) -> pd.DataFrame:
 
 	return df
 
-vw = pd.read_csv(RAW, index_col = "index")
 
-
-
+vw = pd.read_csv(VW_RAW, index_col = "index")
+print("Raw VW dataframe imported.")
 
 """
 create dataframe of paragraphs
@@ -107,12 +106,13 @@ for (index, row) in vw.iterrows():
 	
 	for i in range(len(paragraphs)): # add paragraphs to vwp dataframe and set offset
 		vwp = vwp.append({"letter": index, "offset": i, "text": paragraphs[i]}, ignore_index=True)
+	
+	vwp["letter"] = pd.to_numeric(vwp["letter"], downcast="integer")
+	vwp["offset"] = pd.to_numeric(vwp["offset"], downcast="integer")
 
-print(vwp.head(30).to_string())
+# TODO: don't save empty paragraphs
 
-
- 
-
+print("Raw VWP dataframe created.")
 
 # adjust the letters' information
 vw["place"] = vw["place"].apply(remove_brackets)
@@ -124,17 +124,23 @@ vw["date"] = vw["date"].apply(remove_brackets)
 vw["year"] = vw["date"].apply(extract_year)
 vw = fill_missing_years(vw)
 
+print("VW letters information adjusted.")
+
 """
 text preprocessing
 removing non-alphabetic symbols and lowercase-ing everything
 """
-vw["text"] = vw["text"].apply(remove_non_alphabetic)
-vw["text"] = vw["text"].str.lower()
+vw["text"] = vw["text"].apply(remove_non_alphabetic).str.lower()
+vwp["text"] = vwp["text"].apply(remove_non_alphabetic).str.lower()
 
-# save preprocessed dataframe before tokenization etc.
+print("Removed symbols from VW and VWP and converted to lowercase.")
+
+# save preprocessed dataframes before tokenization etc.
 vw = vw[["id", "year", "recipient", "text", "length"]]
-vw.to_csv(PREPROCESSED, index_label="index")
-print(f"Preprocessed dataframe written to {PREPROCESSED}.")
+vw.to_csv(VW_PREPROCESSED, index_label="index")
+print(f"Preprocessed dataframe written to '{VW_PREPROCESSED}'.")
+vwp.to_csv(VWP_PREPROCESSED, index_label="index")
+print(f"Preprocessed paragraphs dataframe written to '{VWP_PREPROCESSED}'.")
 
 
 """
@@ -153,6 +159,11 @@ def remove_stopwords(tokens: list) -> list:
 vw["text"] = vw["text"].apply(lambda letter: word_tokenize(letter))
 vw["text"] = vw["text"].apply(remove_stopwords)
 
+vwp["text"] = vwp["text"].apply(lambda letter: word_tokenize(letter))
+vwp["text"] = vwp["text"].apply(remove_stopwords)
+
+print("Vw and VWP tokenized and stop words removed.")
+
 """
 lemmatization
 """
@@ -166,13 +177,17 @@ def lemmatize(letter_tokens: list, lemmatizer) -> list:
 	return lemmatized
 
 vw["text"] = vw["text"].apply(lambda letter: lemmatize(letter, wnl))
+vwp["text"] = vwp["text"].apply(lambda letter: lemmatize(letter, wnl))
 
-print(vw.sample(20).to_string())
-print(vw.info())
+print("VW and VWP lemmatized.")
 
-with open(TOKENIZED, "w", encoding="utf-8") as json_file:
+with open(VW_TOKENIZED, "w", encoding="utf-8") as json_file:
 	vw[["year", "recipient", "text"]].to_json(json_file, force_ascii=False, orient="index")
+	print(f"Tokenized VW dataframe written to '{VW_TOKENIZED}'.")
 
-print(f"Tokenized dataframe to '{TOKENIZED}'.")
+with open(VWP_TOKENIZED, "w", encoding="utf-8") as json_file:
+	vwp.to_json(json_file, force_ascii=False, orient="index")
+	print(f"Tokenized VW paragraphs dataframe written to '{VWP_TOKENIZED}'.")
+
 # json unlike csv can handle lists as cell types (the token lists)
 
