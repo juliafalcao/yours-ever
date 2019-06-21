@@ -3,5 +3,6 @@ data/sources/
 data/vangogh/
 data/vw/letters/
 data/vw/letters/output
+data/vw/books/
 src/__pycache__/
 src/draft.py
