@@ -129,8 +129,6 @@ def create_paragraph_embeddings():
 		avg_score: float = np.average(scores)
 		words_to_embed: list = []
 
-		
-
 		for i in range(WORDS_IN_PARAGRAPH_EMBEDDING):
 			id_nearest: int = nearest(scores, avg_score) # get value closest to average
 			words_to_embed.append(words[id_nearest]) # add respective word to list

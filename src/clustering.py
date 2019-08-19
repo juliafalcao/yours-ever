@@ -8,7 +8,6 @@ import matplotlib.cm as cm
 from sklearn.manifold import TSNE
 import typing
 from gensim.models import Word2Vec
-from sklearn.manifold import TSNE
 from nltk.cluster import KMeansClusterer
 from nltk.cluster.util import cosine_distance
 from scipy.spatial.distance import cosine
@@ -23,7 +22,7 @@ def tsne_plot(model):
 	vectors: list = []
 	labels: list = []
 
-	words: list = ["monday", "write", "sick", "england", "sister"]
+	words: list = ["monday", "sick", "sister", "book"]
 
 	for word in words:
 		vectors.append(model.wv[word])
@@ -34,11 +33,11 @@ def tsne_plot(model):
 			labels.append(similar_word)
 	
 	tsne_model = TSNE(
-		perplexity=10,
+		perplexity=2,
 		n_components=2,
 		init="pca",
-		n_iter=2500,
-		random_state=32
+		n_iter=3000,
+		random_state=22
 	)
 
 	tsne_values = tsne_model.fit_transform(vectors)
@@ -60,10 +59,13 @@ def tsne_plot(model):
 		plt.annotate(labels[i], xy=(x[i], y[i]), xytext=(5,2), textcoords="offset points", ha="right", va="bottom")
 
 	plt.title("Embeddings")
-	plt.grid(True)
+	# plt.grid(True)
 	plt.legend(loc=4)
 	plt.show()
 
+model = Word2Vec.load(TRAINED_WORD2VEC)
+tsne_plot(model)
+exit()
 
 def find_paragraph(df: pd.DataFrame, embedding: list) -> pd.Series: # doesn't work!
 	for i in df.index:
@@ -77,7 +79,6 @@ def most_similar_paragraphs(df: pd.DataFrame, vector: list, topn: int = 5) -> li
 	new_df = df.copy(deep=True)
 	new_df["similarity"] = df["embedding"].apply(lambda embedding: cosine(np.array(embedding), vector))
 	new_df = new_df.sort_values(by="similarity", ascending=False)
-
 	return new_df[["letter", "offset", "text", "similarity"]].head(topn)
 
 def recover_raw_paragraph(raw_df: pd.DataFrame, letter: int, offset: int) -> str:
@@ -90,7 +91,7 @@ vwp = pd.read_json(VWP_SCORED, orient="index")
 model = Word2Vec.load(TRAINED_WORD2VEC)
 
 # save embedded words
-vwp["chosen_words"] = vwp["tfidf"].apply(lambda tfidf: list([tfidf[i][0] for i in range(10)]))
+vwp["chosen_words"] = vwp["tfidf"].apply(lambda tfidf: list([tfidf[i][0] for i in range(10)])) # TODO: atualizar isso
 
 N_CLUSTERS = 6
 random_generator = random.Random()

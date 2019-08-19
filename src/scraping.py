@@ -10,18 +10,17 @@ from bs4 import BeautifulSoup as bs
 from bs4 import NavigableString
 import pandas as pd
 
-export_path = "data\\vw\\output"
-letters_path = "data\\vw\\letters"
+LETTERS_PATH = "data\\vw\\letters"
 
 vw = pd.DataFrame({"id": [], "date": [], "recipient": [], "place": [], "text": []})
 
-for letters_file in os.listdir(letters_path): # loop through html files in dir
+for letters_file in os.listdir(LETTERS_PATH): # loop through html files in dir
 	if ".htm" not in letters_file:
 		continue # skip subdirectories
 
 	print(f"Reading '{letters_file}'...")
 
-	with codecs.open(f"{letters_path}\\{letters_file}", mode="r", encoding="utf-8") as file:
+	with codecs.open(f"{LETTERS_PATH}\\{letters_file}", mode="r", encoding="utf-8") as file:
 		file_content = file.read()
 
 	soup = bs(file_content, "html.parser")
