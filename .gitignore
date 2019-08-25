@@ -1,3 +1,6 @@
 .vscode/
 src/__pycache__/
+src/utils/__pycache__/
 src/utils/draft.py
+data/interim/old/
+src/data/make_books_dataset.py

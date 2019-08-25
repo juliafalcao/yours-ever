@@ -1,26 +1,25 @@
 # -*- coding: utf-8 -*-
 
 """
-html scraping to obtain content and info of virginia woolf's letters from epub book
+scraping to obtain the content of the letters from the html files that make up the epub book
 """
 
-from const import *
+import sys
 import codecs, os, re
-from bs4 import BeautifulSoup as bs
-from bs4 import NavigableString
+from bs4 import BeautifulSoup as bs, NavigableString
 import pandas as pd
 
-LETTERS_PATH = "data\\vw\\letters"
+sys.path.append("src/utils")
+from constants import *
 
 vw = pd.DataFrame({"id": [], "date": [], "recipient": [], "place": [], "text": []})
 
-for letters_file in os.listdir(LETTERS_PATH): # loop through html files in dir
-	if ".htm" not in letters_file:
-		continue # skip subdirectories
+for filename in os.listdir(RAW_LETTERS_PATH): # loop through html files in dir
+	assert ".htm" in filename
 
-	print(f"Reading '{letters_file}'...")
+	print(f"Reading '{filename}'...")
 
-	with codecs.open(f"{LETTERS_PATH}\\{letters_file}", mode="r", encoding="utf-8") as file:
+	with codecs.open(f"{RAW_LETTERS_PATH}{filename}", mode="r", encoding="utf-8") as file:
 		file_content = file.read()
 
 	soup = bs(file_content, "html.parser")
@@ -28,7 +27,6 @@ for letters_file in os.listdir(LETTERS_PATH): # loop through html files in dir
 	body = html.find("body")
 	soup = body
 
-	# reading letters from html file
 	delimiter = "link"
 	to_ignore = ["date", "card", "sigil_not_in_toc", "imgbrd", "margl"]
 	count_per_file = 0
@@ -46,8 +44,8 @@ for letters_file in os.listdir(LETTERS_PATH): # loop through html files in dir
 			
 			for item in h3item.next_siblings: # verify next <p ...> elements
 				if isinstance(item, NavigableString):
-						continue # ignore
-					
+						continue
+
 				elif item.has_attr("class"): # <p class="...">
 					item_class = item.get("class")[0]
 
@@ -71,13 +69,10 @@ for letters_file in os.listdir(LETTERS_PATH): # loop through html files in dir
 
 
 			# clean and assemble letter info
-			html_tag_regex = re.compile(r'<[^>]+>')
-			letter_body = html_tag_regex.sub("", letter_body) # remove html tags if any
+			letter_bdody = re.sub(r'<[^>]+>', "", letter_body) # remove html tags if any
 			letter_body = letter_body.strip() # remove trailing whitespace
 
-			if len(letter_body.strip()) < 0:
-				print("ERROR: empty letter body :O")
-				exit()
+			assert len(letter_body.strip()) > 0
 
 			if place is None or place == "[n.d.]":
 				place = "N/A"
@@ -89,23 +84,13 @@ for letters_file in os.listdir(LETTERS_PATH): # loop through html files in dir
 			vw = vw.append({"id": id, "date": time, "recipient": recipient, "place": place, "text": letter_body}, ignore_index=True)
 			count_per_file += 1
 
-
-	# export letter body (for validation purposes)
-	"""
-	out_all_files = f"{export_path}\\letters.txt"
-	file = codecs.open(out_all_files, mode="a+", encoding="utf-8")
-	file.write(letter_body)
-	file.write("\n--------------\n")
-	file.close()
-	"""
-
-	print(f"Finished reading '{letters_file}'.")
+	print(f"Finished reading '{filename}'.")
 	print(f"Added {count_per_file} letters to dataframe.")
 	count_per_file = 0
 
-print("DATAFRAME SAMPLE:")
+print("Dataframe sample:")
 print(vw.sample(30).to_string())
-print("INFO:")
+print("Dataframe info:")
 print(vw.info())
-vw.to_csv(VW_RAW, index_label = "index")
-print(f"Raw letters dataframe successfully written to {VW_RAW}.")
+vw.to_csv(VW_ORIGINAL, index_label = "index")
+print(f"Original letters dataframe successfully written to '{VW_ORIGINAL}'.")
