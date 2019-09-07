@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd 
+import codecs
 from constants import *
 
 """
@@ -23,3 +24,19 @@ def get_paragraph(letter_index: int, offset: int) -> str:
 	
 	assert 0 <= offset < len(paragraphs)
 	return paragraphs[offset]
+
+
+"""
+wrapper function to import dataframes saved as json with the proper encoding settings
+"""
+def read_dataframe(filename: str) -> pd.DataFrame:
+	with codecs.open(filename, mode="r", encoding="utf-8") as file:
+		df = pd.read_json(file, orient="index")
+
+	return df
+
+"""
+dummy function to override tokenization in vectorizers
+"""
+def _dummy(text: str) -> str:
+		return text

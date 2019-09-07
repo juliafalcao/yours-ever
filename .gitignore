@@ -2,5 +2,6 @@
 src/__pycache__/
 src/utils/__pycache__/
 src/utils/draft.py
+src/utils/todo.txt
 data/interim/old/
 src/data/make_books_dataset.py

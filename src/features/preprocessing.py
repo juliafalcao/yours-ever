@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 pre-processing of virginia woolf's letters
 (to be generalized at some point)
@@ -9,7 +11,7 @@ import matplotlib.pyplot as plt
 import dateutil.parser as dateparser
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
-import nltk
+from nltk import pos_tag
 
 sys.path.append("src/utils")
 from constants import *
@@ -27,10 +29,10 @@ function to remove non-alphabetic symbols from string
 """
 def remove_non_alphabetic(text: str) -> str:
 	if pd.notnull(text):
-		to_replace = r'[\-—\+\n]'
+		to_replace = r'[\-—\+\n\r\t]'
 		text = re.sub(to_replace, " ", text) # replace these symbols with spaces
 		to_remove = r'[^a-zA-Z§ ]'
-		text = re.sub(to_remove, "", text) # remove all symbols left except for § (paragraph delimiter)
+		text = re.sub(to_remove, "", text) # remove all unwanted symbols left
 		text = re.sub(r' +', " ", text) # remove extra whitespace
 
 		return text
@@ -105,10 +107,7 @@ def remove_stopwords(tokens: list) -> list:
 		return tokens
 	
 	# based on nltk english stopwords list but modified
-	stopwords = {'most', 'over', 'until', "shouldnt", 'only', 'all', 'o', 'herself', 'same', 'ma', 'i', 'will', 'now', 'these', 'needn', 'out', 'yours', 'hadn', 'where', 'during', 'above', 'very', 'aren', 'off', 'when', 'once', 'm', 'don', 'then', 'why', 'its', 'weren', "couldn't", 'him', "mightn't", 't', 'to', 'into', 'been', 'wasn', 'wouldn', 'won', 'are', 'whom', 'y', 'more', 'some', 'nor', 'by', 'being', "shes", 'a', 'about', 'he', 'below', 'my', 'it', "needn't", 'they', 'does', 'this', 'any', "wouldnt", 'and', 'ours', "havent", 'you', 'should', 'in', "isn't", 'each', 's', "won't", "don't", 'them', 'himself', 'if', 'so', 'at', 'mustn', 'themselves', 'further', 'myself', 'ain', 'she', 'an', "werent", 'our', 'what', 'on', 'doing', 'll', 'isn', 'yourself', "its", 'too', "arent", 'couldn', 'just', 'we', "hasnt", 'have', "didnt", 'is', 'the', 'for', 've', 'do', 'few', 'hasn', 'those', 'was', 'such', 'which', 'didn', 'because', 'of', 'hers', 'not', "shouldve", 'me', 'were', 'with', 'itself', 'doesn', 'shan', 'or', 'both', 'can', 'has', 'did', 'while', 'no', "youd", 'be', "hadnt", 'but', 'shouldn', 'his', 'their', 're', 'again', 'how', 'your', 'here', 'before', 'through', 'who', 'up', 'between', 'yourselves', "mustnt", 'having', 'her', 'other', 'theirs', 'am', 'haven', 'against', 'as', 'had', "doesnt", 'mightn', "youre", 'from', 'under', 'than', "youve", 'd', 'down', 'ourselves', 'there', "wasnt", "youll", 'that', 'own', 'after', "one", "dont", "im", "ive"}
-	"""
-	words added to list after word frequency analysis: one, dont, im, ive
-	"""
+	stopwords = ['most', 'over', 'until', "shouldnt", 'only', 'all', 'o', 'herself', 'same', 'ma', 'i', 'will', 'now', 'these', 'needn', 'out', 'yours', 'hadn', 'where', 'during', 'above', 'very', 'aren', 'off', 'when', 'once', 'm', 'don', 'then', 'why', 'its', 'weren', "couldn't", 'him', "mightn't", 't', 'to', 'into', 'been', 'wasn', 'wouldn', 'won', 'are', 'whom', 'y', 'more', 'some', 'nor', 'by', 'being', "shes", 'a', 'about', 'he', 'below', 'my', 'it', "needn't", 'they', 'does', 'this', 'any', "wouldnt", 'and', 'ours', "havent", 'you', 'should', 'in', "isn't", 'each', 's', "won't", "don't", 'them', 'himself', 'if', 'so', 'at', 'mustn', 'themselves', 'further', 'myself', 'ain', 'she', 'an', "werent", 'our', 'what', 'on', 'doing', 'll', 'isn', 'yourself', "its", 'too', "arent", 'couldn', 'just', 'we', "hasnt", 'have', "didnt", 'is', 'the', 'for', 've', 'do', 'few', 'hasn', 'those', 'was', 'such', 'which', 'didn', 'because', 'of', 'hers', 'not', "shouldve", 'me', 'were', 'with', 'itself', 'doesn', 'shan', 'or', 'both', 'can', 'has', 'did', 'while', 'no', "youd", 'be', "hadnt", 'but', 'shouldn', 'his', 'their', 're', 'again', 'how', 'your', 'here', 'before', 'through', 'who', 'up', 'between', 'yourselves', "mustnt", 'having', 'her', 'other', 'theirs', 'am', 'haven', 'against', 'as', 'had', "doesnt", 'mightn', "youre", 'from', 'under', 'than', "youve", 'd', 'down', 'ourselves', 'there', "wasnt", "youll", 'that', 'own', 'after', "one", "dont", "im", "ive", "without", "with", "till", "must", "get", "neither", "also", "could", "couldnt", "would", "wouldnt", "wont", "might", "thats", "weve", "mr", "mrs", "let", "yr", "yrs", "x"]
 
 	new_tokens = [t for t in tokens if t not in stopwords]
 	return new_tokens
@@ -119,7 +118,7 @@ function to lemmatize text passed as list of tokens, using WordNetLemmatizer
 def lemmatize(tokens: list) -> list:
 	wnl = WordNetLemmatizer()
 
-	pos_tags = nltk.pos_tag(tokens=tokens, tagset="universal")
+	pos_tags = pos_tag(tokens=tokens, tagset="universal")
 	mapping = {"NOUN": "n", "VERB": "v", "ADV": "r", "ADJ": "a"} # tags recognized by the lemmatizer, else default to "v"
 	pos_tags = dict([(_, mapping[tag] if tag in mapping else "v") for (_, tag) in pos_tags])
 
@@ -147,6 +146,7 @@ vw["place"] = vw["place"].apply(remove_brackets)
 vw["recipient"] = vw["recipient"].apply(trim_recipient)
 vw["recipient"] = vw["recipient"].apply(lambda r: r.replace("\xa0", " "))
 vw["recipient"] = vw["recipient"].replace("V. Sackville-West", "Vita Sackville-West") # ♡
+
 vw["date"] = vw["date"].apply(remove_brackets).apply(extract_year) # keep only years
 vw = vw.rename(columns={"date": "year"})
 vw = fill_missing_years(vw)
@@ -198,6 +198,7 @@ for (index, row) in vw.iterrows():
 			}, ignore_index=True)
 	
 
+	vwp["year"] = pd.to_numeric(vwp["year"], downcast="integer")
 	vwp["letter"] = pd.to_numeric(vwp["letter"], downcast="integer")
 	vwp["offset"] = pd.to_numeric(vwp["offset"], downcast="integer")
 
