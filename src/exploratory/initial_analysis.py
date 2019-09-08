@@ -6,9 +6,11 @@ import matplotlib.pyplot as plt
 import nltk
 from wordcloud import WordCloud
 from sklearn.feature_extraction.text import TfidfVectorizer
-import json
+import json, sys
 from scipy.sparse import csr_matrix
-from const import *
+
+sys.path.append("src/utils")
+from constants import * 
 
 pd.set_option('precision', 0)
 
@@ -39,8 +41,8 @@ avg_letters_per_year = np.average(years)
 recs = vw[vw["recipient"].notnull()][["recipient"]]
 recs = recs.groupby(["recipient"]).size()
 recs = recs.sort_values(ascending=False)
-# print("\nTOP RECIPIENTS (20+ letters):")
-# print(recs[recs >= 20].to_string())
+print("\nTOP RECIPIENTS (20+ letters):")
+print(recs[recs >= 20].to_string())
 
 # average length
 avg_length = np.average(vw["length"])

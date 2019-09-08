@@ -21,7 +21,7 @@ VWP_PREPROCESSED = "data/interim/vwp_preprocessed.json"
 
 # trained models
 TRAINED_WORD2VEC = "models/vw_word2vec.model"
-TRAINED_LDA = "models/vw_lda.model"
+TRAINED_LDA = "models/lda/vw_lda"
 
 # tf-idf stuff
 VWP_TFIDF_VOCAB = "src/tfidf/vwp_tfidf_vocab.json"
