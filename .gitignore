@@ -4,4 +4,5 @@ src/utils/__pycache__/
 src/utils/draft.py
 src/utils/todo.txt
 data/interim/old/
+data/raw/books/
 src/data/make_books_dataset.py
