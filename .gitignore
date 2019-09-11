@@ -3,6 +3,6 @@ src/__pycache__/
 src/utils/__pycache__/
 src/utils/draft.py
 src/utils/todo.txt
-data/interim/old/
-data/raw/books/
+data/
 src/data/make_books_dataset.py
+src/features/lemmatization_trial.py
