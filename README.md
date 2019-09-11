@@ -1,2 +1,0 @@
-*yours ever*\
-*virginia woolf*

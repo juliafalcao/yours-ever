@@ -6,3 +6,4 @@ src/utils/todo.txt
 data/
 src/data/make_books_dataset.py
 src/features/lemmatization_trial.py
+models/
