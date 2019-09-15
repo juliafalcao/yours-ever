@@ -1,7 +1,12 @@
 .vscode/
-data/sources/
-data/vangogh/
-data/vw/letters/
-data/vw/letters/output
+data/
+models/
 src/__pycache__/
-src/draft.py
+src/utils/__pycache__/
+reports/graphs/tfidf/
+reports/graphs/yearly_wordclouds/
+src/utils/draft.py
+src/utils/todo.txt
+src/features/lemmatization_trial.py
+src/data/make_books_dataset.py
+src/*.py
