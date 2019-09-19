@@ -1,8 +1,7 @@
 .vscode/
-data/
-models/
-src/__pycache__/
-src/utils/__pycache__/
+__pycache__/
+/data/
+/models/
 reports/graphs/tfidf/
 reports/graphs/yearly_wordclouds/
 src/utils/draft.py
