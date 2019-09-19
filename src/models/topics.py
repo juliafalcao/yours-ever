@@ -16,10 +16,8 @@ sys.path.append("src/utils")
 from constants import *
 from utils import *
 
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-
 # local constants
-N_TOPICS: int = 5
+N_TOPICS: int = 4
 UNIQUE_WORDS_THRESHOLD: int = 10
 N_MOST_FREQUENT_TO_REMOVE: int = 100
 
@@ -78,7 +76,7 @@ lda = LdaMulticore(
 	corpus,
 	num_topics=N_TOPICS,
 	id2word=dictionary,
-	passes=20,
+	passes=15,
 	random_state=1,
 	workers=3
 	# per_word_topics=True
@@ -190,10 +188,27 @@ def plot_silhouette(lda_model, corpus, num_topics: int) -> None:
 	ax1.axvline(x=silhouette_avg, color="red", linestyle="--")
 	ax1.set_yticks([])
 	ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1]) # ?
-	plt.savefig(f"{GRAPHS_PATH}silhouette_{N_TOPICS}topics.png")
+	plt.savefig(f"{SILHOUETTE_PLOTS_PATH}silhouette_{N_TOPICS}topics.png")
 	plt.show()
 
 plot_silhouette(lda, corpus, N_TOPICS)
 
-# vis = pyLDAvis.gensim.prepare(topic_model=lda, corpus=corpus, dictionary=dictionary, n_jobs=3)
-# pyLDAvis.show(vis)
+# pyLDAvis visualization
+vis = pyLDAvis.gensim.prepare(topic_model=lda, corpus=corpus, dictionary=dictionary, n_jobs=3)
+pyLDAvis.save_html(vis, f"{PYLDAVIS_PATH}/lda{N_TOPICS}.html")
+
+# save most representative letters to files for validation
+LETTERS_TO_PRINT: int = 3
+
+vwo = pd.read_csv(VW_ORIGINAL, index_col="index")
+vws["main"] = np.argmax([vws[f"Topic {t}"] for t in range(N_TOPICS)], axis=0)
+
+for t in range(N_TOPICS):
+	vws_t = vws[vws["main"] == t]
+	vws_t = vws_t.sort_values(by=f"Topic {t}", ascending=False)
+	
+	for i in range(LETTERS_TO_PRINT):
+		letter_id = vws_t.index[i]
+		vwo_row = vwo.ix[letter_id]
+		vwo_row.to_csv(f"{LDA_LETTERS_PATH}/lda{N_TOPICS}_topic{t}_letter{i}.csv", sep=":") # TODO: move to utils.py
+		

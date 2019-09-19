@@ -9,3 +9,4 @@ src/utils/todo.txt
 src/features/lemmatization_trial.py
 src/data/make_books_dataset.py
 src/*.py
+reports/lda_assigned_letters/

@@ -10,7 +10,9 @@ SENTENCE_DELIM = "●"
 
 # file paths, relative to project root
 RAW_LETTERS_PATH = "data/raw/letters/"
-GRAPHS_PATH = "reports/graphs/"
+SILHOUETTE_PLOTS_PATH = "reports/graphs/silhouette/"
+LDA_LETTERS_PATH = "reports/lda_assigned_letters/"
+PYLDAVIS_PATH = "reports/pyldavis/"
 
 # VW: main dataset of letters
 VW_ORIGINAL = "data/interim/vw_original.csv"
