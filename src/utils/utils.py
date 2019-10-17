@@ -40,3 +40,22 @@ dummy function to override tokenization in vectorizers
 """
 def _dummy(text: str) -> str:
 		return text
+
+"""
+function that receives a series of letters as lists of tokens and returns all of them concatenated (one list of tokens)
+"""
+def concat_all_letters(letters: pd.Series):
+	letters = letters.apply(lambda letter: " ".join(letter))
+	all_letters = letters.str.cat(sep=" ")
+	return all_letters
+
+
+def log(something, filename: str):
+	printable = str(something)
+
+	filepath = f"{EXEC_LOGS_PATH}{filename}.txt"
+
+	with open(filepath, encoding="utf8", mode="w") as file:
+		file.write(printable)
+	
+	return

@@ -14,6 +14,8 @@ GRAPHS_PATH = "reports/graphs/"
 SILHOUETTE_PLOTS_PATH = "reports/graphs/silhouette/"
 LDA_LETTERS_PATH = "reports/lda_assigned_letters/"
 PYLDAVIS_PATH = "reports/pyldavis/"
+TOPIC_WORDCLOUDS_PATH = "reports/graphs/topic_wordclouds/"
+EXEC_LOGS_PATH = "reports/logs/"
 
 # VW: main dataset of letters
 VW_ORIGINAL = "data/interim/vw_original.csv"

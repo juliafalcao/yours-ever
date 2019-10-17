@@ -11,13 +11,14 @@ from scipy.sparse import csr_matrix
 
 sys.path.append("src/utils")
 from constants import * 
+from utils import *
 
 pd.set_option('precision', 0)
 
 """
 from basic preprocessed text
 """
-vw = pd.read_csv(VW_PREPROCESSED, index_col="index")
+vw = read_dataframe(VW_PREPROCESSED)
 # print("DATAFRAME SAMPLE:")
 # print(vw.sample(10).to_string())
 
@@ -53,12 +54,6 @@ print(f"\nAVERAGE LENGTH OF LETTERS: {int(avg_length)} characters")
 """
 from tokenized text
 """
-
-def concat_all_letters(letters_series): # pass series of letters as lists of tokens
-	series = letters_series.apply(lambda letter: " ".join(letter))
-	all_letters = series.str.cat(sep=" ")
-
-	return all_letters
 
 
 vw = pd.read_json(VW_TOKENIZED, orient="index")

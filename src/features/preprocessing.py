@@ -2,8 +2,8 @@
 
 """
 pre-processing of virginia woolf's letters
-(to be generalized at some point)
 """
+
 import sys, re, typing
 import pandas as pd
 import numpy as np
@@ -27,15 +27,30 @@ def remove_brackets(text: str) -> str:
 """
 function to remove non-alphabetic symbols from string
 """
-def remove_non_alphabetic(text: str) -> str:
+def remove_non_alphabetic(text: str, replace_specifics=True, remove_rest=True) -> str:
 	if pd.notnull(text):
-		to_replace = r'[\-—\+\n\r\t]'
-		text = re.sub(to_replace, " ", text) # replace these symbols with spaces
-		to_remove = r'[^a-zA-Z§ ]'
-		text = re.sub(to_remove, "", text) # remove all unwanted symbols left
-		text = re.sub(r' +', " ", text) # remove extra whitespace
-
+		if replace_specifics:
+			to_replace = r'[\-—\+\n\r\t\’”]'
+			text = re.sub(to_replace, " ", text) # replace these symbols with spaces
+		if remove_rest:
+			to_remove = r'[^a-zA-Z§ ]'
+			text = re.sub(to_remove, "", text) # remove all unwanted symbols left
+		text = re.sub(r'r) +', " ", text) # remove extra whitespace
 		return text
+	
+def replace_non_alphabetic(text: str):
+	to_replace = r'[\-—\+\n\r\t\’”]'
+	text = re.sub(to_replace, " ", text) # replace these symbols with spaces
+	text = re.sub(r' +', " ", text) # remove extra whitespace
+
+	return text
+
+def remove_non_alphabetic(tokens: list):
+	to_remove = r'[^a-zA-Z§ ]'
+	tokens = [re.sub(to_remove, "", t) for t in tokens]
+	tokens = [t for t in tokens if t != ""]
+
+	return tokens
 
 """
 function to trim the recipients of the letters, saved as "To Vanessa Bell" in the original dataframe
@@ -107,7 +122,7 @@ def remove_stopwords(tokens: list) -> list:
 		return tokens
 	
 	# based on nltk english stopwords list but modified
-	stopwords = ['most', 'over', 'until', "shouldnt", 'only', 'all', 'o', 'herself', 'same', 'ma', 'i', 'will', 'now', 'these', 'needn', 'out', 'yours', 'hadn', 'where', 'during', 'above', 'very', 'aren', 'off', 'when', 'once', 'm', 'don', 'then', 'why', 'its', 'weren', "couldn't", 'him', "mightn't", 't', 'to', 'into', 'been', 'wasn', 'wouldn', 'won', 'are', 'whom', 'y', 'more', 'some', 'nor', 'by', 'being', "shes", 'a', 'about', 'he', 'below', 'my', 'it', "needn't", 'they', 'does', 'this', 'any', "wouldnt", 'and', 'ours', "havent", 'you', 'should', 'in', "isn't", 'each', 's', "won't", "don't", 'them', 'himself', 'if', 'so', 'at', 'mustn', 'themselves', 'further', 'myself', 'ain', 'she', 'an', "werent", 'our', 'what', 'on', 'doing', 'll', 'isn', 'yourself', "its", 'too', "arent", 'couldn', 'just', 'we', "hasnt", 'have', "didnt", 'is', 'the', 'for', 've', 'do', 'few', 'hasn', 'those', 'was', 'such', 'which', 'didn', 'because', 'of', 'hers', 'not', "shouldve", 'me', 'were', 'with', 'itself', 'doesn', 'shan', 'or', 'both', 'can', 'has', 'did', 'while', 'no', "youd", 'be', "hadnt", 'but', 'shouldn', 'his', 'their', 're', 'again', 'how', 'your', 'here', 'before', 'through', 'who', 'up', 'between', 'yourselves', "mustnt", 'having', 'her', 'other', 'theirs', 'am', 'haven', 'against', 'as', 'had', "doesnt", 'mightn', "youre", 'from', 'under', 'than', "youve", 'd', 'down', 'ourselves', 'there', "wasnt", "youll", 'that', 'own', 'after', "one", "dont", "im", "ive", "without", "with", "till", "must", "get", "neither", "also", "could", "couldnt", "would", "wouldnt", "wont", "might", "thats", "weve", "mr", "mrs", "let", "yr", "yrs", "x", "upon", "every", "anyhow", "there", "here", "l", "th", "b", "av", "do"]
+	stopwords = ['most', 'over', 'until', "shouldnt", 'only', 'all', 'o', 'herself', 'same', 'ma', 'i', 'will', 'now', 'these', 'needn', 'out', 'yours', 'hadn', 'where', 'during', 'above', 'very', 'aren', 'off', 'when', 'once', 'm', 'don', 'then', 'why', 'its', 'weren', "couldn't", 'him', "mightn't", 't', 'to', 'into', 'been', 'wasn', 'wouldn', 'won', 'are', 'whom', 'y', 'more', 'some', 'nor', 'by', 'being', "shes", 'a', 'about', 'he', 'below', 'my', 'it', "needn't", 'they', 'does', 'this', 'any', "wouldnt", 'and', 'ours', "havent", 'you', 'should', 'in', "isn't", 'each', 's', "won't", "don't", 'them', 'himself', 'if', 'so', 'at', 'mustn', 'themselves', 'further', 'myself', 'ain', 'she', 'an', "werent", 'our', 'what', 'on', 'doing', 'll', 'isn', 'yourself', "its", 'too', "arent", 'couldn', 'just', 'we', "hasnt", 'have', "didnt", 'is', 'the', 'for', 've', 'do', 'few', 'hasn', 'those', 'was', 'such', 'which', 'didn', 'because', 'of', 'hers', 'not', "shouldve", 'me', 'were', 'with', 'itself', 'doesn', 'shan', 'or', 'both', 'can', 'has', 'did', 'while', 'no', "youd", 'be', "hadnt", 'but', 'shouldn', 'his', 'their', 're', 'again', 'how', 'your', 'here', 'before', 'through', 'who', 'up', 'between', 'yourselves', "mustnt", 'having', 'her', 'other', 'theirs', 'am', 'haven', 'against', 'as', 'had', "doesnt", 'mightn', "youre", 'from', 'under', 'than', "youve", 'd', 'down', 'ourselves', 'there', "wasnt", "youll", 'that', 'own', 'after', "one", "dont", "im", "ive", "without", "with", "till", "must", "get", "neither", "also", "could", "couldnt", "would", "wouldnt", "wont", "might", "thats", "weve", "mr", "mrs", "let", "yr", "yrs", "x", "upon", "every", "anyhow", "there", "here", "l", "th", "b", "av", "do"] # TODO: revise (most will have already been thrown out because of POS tags)
 
 	new_tokens = [t for t in tokens if t not in stopwords]
 	return new_tokens
@@ -135,6 +150,32 @@ def split_list(tokens: list, delim: str) -> list:
 	tokens = [part.replace(delim, "").split(" ") for part in parts] # re-tokenize
 	return tokens
 
+"""
+reduction:
+1. tokenization
+2. pos-tagging
+3. lemmatization
+4. filtering by pos-tags
+"""
+def reduction_pipeline(text: str, pos_whitelist: list) -> list:
+	text = text.lower()
+	text = replace_non_alphabetic(text) # leave punctuation for pos-tagging
+	tokens = word_tokenize(text)
+	pos_tags = pos_tag(tokens=tokens, tagset="universal")
+
+	wnl = WordNetLemmatizer()
+	mapping = {"NOUN": "n", "VERB": "v", "ADV": "r", "ADJ": "a"} # tags recognized by the lemmatizer, else default to "n"
+	wnl_pos_tags = [(token, mapping[tag] if tag in mapping else "n") for (token, tag) in pos_tags]
+	lemmatized = [(wnl.lemmatize(token, tag), tag) for (token, tag) in wnl_pos_tags]
+
+	pos_whitelist = [mapping[tag] for tag in pos_whitelist]
+	filtered = [token for (token, pos) in lemmatized if pos in pos_whitelist]
+	
+	cleaned = remove_non_alphabetic(filtered) # remove remaining non-alphabetic symbols
+	return cleaned
+
+
+# ---------------------------------------------------------------------------------------------
 
 vw = pd.read_csv(VW_ORIGINAL, index_col="index")
 print("Original letters dataframe imported.")
@@ -153,23 +194,22 @@ vw = fill_missing_years(vw)
 vw["year"] = pd.to_numeric(vw["year"], downcast="integer")
 
 """
-text preprocessing
-1. removal of non-alphabetic symbols and conversion to lowercase
-2. tokenization
-3. stop words removal
-4. lemmatization
+text preprocessing and reduction
 """
 
-vw["text"] = vw["text"].apply(remove_non_alphabetic).str.lower()
-vw["text"] = vw["text"].apply(word_tokenize)
-vw["text"] = vw["text"].apply(remove_stopwords)
-vw["text"] = vw["text"].apply(lemmatize)
+# vw["text"] = vw["text"].apply(lambda tokens: filter_by_pos(tokens, ["VERB", "ADJ", "ADV"])) # keep only verbs, adjectives and adverbs
+# vw["text"] = vw["text"].apply(remove_non_alphabetic).str.lower()
+# vw["text"] = vw["text"].apply(word_tokenize)
+# vw["text"] = vw["text"].apply(remove_stopwords)
+# vw["text"] = vw["text"].apply(lemmatize)
 
+pos_whitelist = ["VERB", "ADJ", "ADV"]
+vw["text"] = vw["text"].apply(lambda text: reduction_pipeline(text, pos_whitelist))
 
-with open(VW_PREPROCESSED, "w", encoding="utf-8") as json_file:
+with open(VW_PREPROCESSED, "w", encoding="utf8") as json_file:
 	vw.to_json(json_file, force_ascii=False, orient="index")
 
-print(f"Dataset has been successfully preprocessed, tokenized, stripped of stop words and lemmatized, and written to '{VW_PREPROCESSED}'.")
+print(f"Dataset has been successfully preprocessed and reduced, and written to '{VW_PREPROCESSED}'.")
 
 """
 create dataframe of paragraphs from the preprocessed letters
