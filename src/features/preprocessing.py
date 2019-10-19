@@ -25,19 +25,8 @@ def remove_brackets(text: str) -> str:
 		return re.sub(brackets, "", text)
 
 """
-function to remove non-alphabetic symbols from string
+function to replace non-alphabetic symbols in string with spaces
 """
-def remove_non_alphabetic(text: str, replace_specifics=True, remove_rest=True) -> str:
-	if pd.notnull(text):
-		if replace_specifics:
-			to_replace = r'[\-—\+\n\r\t\’”]'
-			text = re.sub(to_replace, " ", text) # replace these symbols with spaces
-		if remove_rest:
-			to_remove = r'[^a-zA-Z§ ]'
-			text = re.sub(to_remove, "", text) # remove all unwanted symbols left
-		text = re.sub(r'r) +', " ", text) # remove extra whitespace
-		return text
-	
 def replace_non_alphabetic(text: str):
 	to_replace = r'[\-—\+\n\r\t\’”]'
 	text = re.sub(to_replace, " ", text) # replace these symbols with spaces
@@ -45,6 +34,9 @@ def replace_non_alphabetic(text: str):
 
 	return text
 
+"""
+function to remove non alphabetic symbols from tokens in tokens list
+"""
 def remove_non_alphabetic(tokens: list):
 	to_remove = r'[^a-zA-Z§ ]'
 	tokens = [re.sub(to_remove, "", t) for t in tokens]
@@ -122,9 +114,13 @@ def remove_stopwords(tokens: list) -> list:
 		return tokens
 	
 	# based on nltk english stopwords list but modified
-	stopwords = ['most', 'over', 'until', "shouldnt", 'only', 'all', 'o', 'herself', 'same', 'ma', 'i', 'will', 'now', 'these', 'needn', 'out', 'yours', 'hadn', 'where', 'during', 'above', 'very', 'aren', 'off', 'when', 'once', 'm', 'don', 'then', 'why', 'its', 'weren', "couldn't", 'him', "mightn't", 't', 'to', 'into', 'been', 'wasn', 'wouldn', 'won', 'are', 'whom', 'y', 'more', 'some', 'nor', 'by', 'being', "shes", 'a', 'about', 'he', 'below', 'my', 'it', "needn't", 'they', 'does', 'this', 'any', "wouldnt", 'and', 'ours', "havent", 'you', 'should', 'in', "isn't", 'each', 's', "won't", "don't", 'them', 'himself', 'if', 'so', 'at', 'mustn', 'themselves', 'further', 'myself', 'ain', 'she', 'an', "werent", 'our', 'what', 'on', 'doing', 'll', 'isn', 'yourself', "its", 'too', "arent", 'couldn', 'just', 'we', "hasnt", 'have', "didnt", 'is', 'the', 'for', 've', 'do', 'few', 'hasn', 'those', 'was', 'such', 'which', 'didn', 'because', 'of', 'hers', 'not', "shouldve", 'me', 'were', 'with', 'itself', 'doesn', 'shan', 'or', 'both', 'can', 'has', 'did', 'while', 'no', "youd", 'be', "hadnt", 'but', 'shouldn', 'his', 'their', 're', 'again', 'how', 'your', 'here', 'before', 'through', 'who', 'up', 'between', 'yourselves', "mustnt", 'having', 'her', 'other', 'theirs', 'am', 'haven', 'against', 'as', 'had', "doesnt", 'mightn', "youre", 'from', 'under', 'than', "youve", 'd', 'down', 'ourselves', 'there', "wasnt", "youll", 'that', 'own', 'after', "one", "dont", "im", "ive", "without", "with", "till", "must", "get", "neither", "also", "could", "couldnt", "would", "wouldnt", "wont", "might", "thats", "weve", "mr", "mrs", "let", "yr", "yrs", "x", "upon", "every", "anyhow", "there", "here", "l", "th", "b", "av", "do"] # TODO: revise (most will have already been thrown out because of POS tags)
+	# stopwords = ['most', 'over', 'until', "shouldnt", 'only', 'all', 'o', 'herself', 'same', 'ma', 'i', 'will', 'now', 'these', 'needn', 'out', 'yours', 'hadn', 'where', 'during', 'above', 'very', 'aren', 'off', 'when', 'once', 'm', 'don', 'then', 'why', 'its', 'weren', "couldn't", 'him', "mightn't", 't', 'to', 'into', 'been', 'wasn', 'wouldn', 'won', 'are', 'whom', 'y', 'more', 'some', 'nor', 'by', 'being', "shes", 'a', 'about', 'he', 'below', 'my', 'it', 'they', 'does', 'this', 'any', "wouldnt", 'and', 'ours', "havent", 'you', 'should', 'in', "isn't", 'each', 's', "won't", "don't", 'them', 'himself', 'if', 'so', 'at', 'mustn', 'themselves', 'further', 'myself', 'ain', 'she', 'an', "werent", 'our', 'what', 'on', 'doing', 'll', 'isn', 'yourself', "its", 'too', "arent", 'couldn', 'just', 'we', "hasnt", 'have', "didnt", 'is', 'the', 'for', 've', 'do', 'few', 'hasn', 'those', 'was', 'such', 'which', 'didn', 'because', 'of', 'hers', 'not', "shouldve", 'me', 'were', 'with', 'itself', 'doesn', 'shan', 'or', 'both', 'can', 'has', 'did', 'while', 'no', "youd", 'be', "hadnt", 'but', 'shouldn', 'his', 'their', 're', 'again', 'how', 'your', 'here', 'before', 'through', 'who', 'up', 'between', 'yourselves', "mustnt", 'having', 'her', 'other', 'theirs', 'am', 'haven', 'against', 'as', 'had', "doesnt", 'mightn', "youre", 'from', 'under', 'than', "youve", 'd', 'down', 'ourselves', 'there', "wasnt", "youll", 'that', 'own', 'after', "one", "dont", "im", "ive", "without", "with", "till", "must", "get", "neither", "also", "could", "couldnt", "would", "wouldnt", "wont", "might", "thats", "mr", "mrs", "let", "yr", "yrs", "x", "upon", "every", "anyhow", "there", "here", "l", "th", "b", "av", "do", "re", "ve"]
 
-	new_tokens = [t for t in tokens if t not in stopwords]
+	stopwords = ["most", "over", "until", "only", "all", "herself", "same", "t", "o", "re", "ve", "b", "th", "l", "here", "do", "did", "out", "need", "your", "yours", "yrs", "yr", "v", "vw", "m", "ll", "may", "might", "shall", "where", "still", "too", "are", "its", "it", "could", "just", "we", "us", "hers", "her", "him", "his", "you", "yourself", "had", "has", "were", "with", "without", "under", "than", "that", "again", "affate", "would", "will", "one", "i", "till", "must", "get", "neither", "also", "mr", "mrs", "miss", "any", "every", "there", "here", "x", "their", "theirs", "itself", "below", "my", "mine", "them", "this", "more", "less", "some", "nor", "by", "why", "because", "to", "into", "been", "ours", "each", "can", "both", "shan", "or", "and", "while", "down", "few", "for", "should", "ma", "now", "these", "during", "very", "off", "when", "once", "whom", "won", "y", "being", "a", "about", "he", "they", "does", "in", "isn", "himself", "if", "so", "at", "mustn", "themselves", "further", "myself", "ain", "she", "on", "doing", "couldn", "hasn", "what", "couldn", "have", "is", "was", "such", "which", "not", "having", "other", "am", "against", "doesn", "mightn", "youre", "from", "youve", "ourselves", "youll", "let", "upon", "anyhow", "av", "thats", "oh", "else", "least", "enough", "s", "dear"]
+
+	names = ["virginia", "vita", "leonard", "nessa", "nelly", "duncan", "ethel", "violet", "bell", "vanessa", "clive", "lytton", "quentin", "roger", "tom", "ottoline", "ott", "morrell", "julian", "gordon", "goldie", "desmond", "bunny", "charleston", "angelica", "square", "tavistock", "morgan", "sibyl", "sybil", "colefax", "maynard", "john", "sackville", "harold", "nicolson", "lydia", "adrian", "mary"]
+
+	new_tokens = [t for t in tokens if t not in stopwords and t not in names]
 	return new_tokens
 
 """
@@ -156,6 +152,8 @@ reduction:
 2. pos-tagging
 3. lemmatization
 4. filtering by pos-tags
+5. stop word removal
+6. final cleanup of non-alphabetic symbols
 """
 def reduction_pipeline(text: str, pos_whitelist: list) -> list:
 	text = text.lower()
@@ -171,7 +169,8 @@ def reduction_pipeline(text: str, pos_whitelist: list) -> list:
 	pos_whitelist = [mapping[tag] for tag in pos_whitelist]
 	filtered = [token for (token, pos) in lemmatized if pos in pos_whitelist]
 	
-	cleaned = remove_non_alphabetic(filtered) # remove remaining non-alphabetic symbols
+	cleaned = remove_stopwords(filtered) # remove remaining stop words
+	cleaned = remove_non_alphabetic(cleaned) # remove remaining non-alphabetic symbols
 	return cleaned
 
 

@@ -56,6 +56,7 @@ def log(something, filename: str):
 	filepath = f"{EXEC_LOGS_PATH}{filename}.txt"
 
 	with open(filepath, encoding="utf8", mode="w") as file:
-		file.write(printable)
+		_ = file.write(printable)
+		print(f"Logged: {filepath}")
 	
 	return
