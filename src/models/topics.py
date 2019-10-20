@@ -138,19 +138,27 @@ def plot_silhouette(lda_model, corpus) -> float:
 """
 function that saves most representative letters of each topic to text files for manual validation
 """
-def save_representative_letters(lda_model, n_letters: int = 3) -> None:
-	vws = get_topic_dists_dataframe(lda_model)
-	vwo = pd.read_csv(VW_ORIGINAL, index_col="index")
-	vws["main"] = np.argmax([vws[f"Topic {t}"] for t in range(lda_model.num_topics)], axis=0)
+def save_representative_letters(lda_model, n_letters: int = 3, recipient: str = None) -> None:
+	assert n_letters > 0
 
+	vwo = pd.read_csv(VW_ORIGINAL, index_col="index")
+
+	if recipient is not None:
+		vws["recipient"] = vw["recipient"]
+		vws_copy = vws[vws["recipient"] == recipient].copy()
+		acronym = f"_{''.join([name[0] for name in recipient.split(' ')]).lower()}"
+	else:
+		vws_copy = vws
+		acronym = ""
+	
 	for t in range(lda_model.num_topics):
-		vws_t = vws[vws["main"] == t]
+		vws_t = vws_copy[vws_copy["main"] == t]
 		vws_t = vws_t.sort_values(by=f"Topic {t}", ascending=False)
 
 		for i in range(n_letters):
 			letter_id = vws_t.index[i]
 			vwo_row: pd.Series = vwo.loc[letter_id]
-			vwo_row.to_csv(f"{LDA_LETTERS_PATH}lda{lda_model.num_topics}_topic{t}_letter{i}.csv", sep=":", header=True)
+			vwo_row.to_csv(f"{LDA_LETTERS_PATH}lda{lda_model.num_topics}{acronym}_topic{t}_letter{i}.csv", sep=":", header=True)
 
 	print("Saved most representative letters for LDA model.")
 
@@ -258,6 +266,8 @@ def plot_metrics(results: list) -> None:
 	ax1.grid(True)
 	ax2.grid(True)
 	plt.savefig(f"{GRAPHS_PATH}metrics_per_num_topics.png")
+	print("Saved plot of metrics comparison between different numbers of topics.")
+	plt.clf()
 
 """
 generates and saves wordclouds per topic of a given LDA model
@@ -309,20 +319,30 @@ def plot_topics_per_year(vw: pd.DataFrame) -> None:
 	yearly = yearly.drop(["main"], axis=1).drop_duplicates(subset=["year"], keep="first")
 
 	fig, ax = plt.subplots(1, 1, figsize=(14,7))
-
-	xrange = range(len(years))
 	years = list(yearly["year"])
-	colors = ["indianred", "gold", "lightseagreen"]
+	xrange = list(range(len(years)))
+	colors = [cm.rainbow(float(i)/n_topics) for i in range(n_topics)]
 	labels = [f"Topic {i}" for i in range(n_topics)]
 
-	ax.bar(x=xrange, height=yearly["0"], width=0.8, bottom=0, color=colors[0], align="center", label=labels[0])
-	ax.bar(x=xrange, height=yearly["1"], width=0.8, bottom=list(yearly["0"]), color=colors[1], align="center", label=labels[1])
-	ax.bar(x=xrange, height=yearly["2"], width=0.8, bottom=list(yearly["0"]+yearly["1"]), color=colors[2], align="center", label=labels[2])
-	# TODO: make the damn loop work ?????
+	# make bar graphs
+	for i in range(n_topics):
+		if i == 0:
+			btm = 0
+
+		else: # calculate bottom
+			sum: pd.Series = yearly["0"]
+			for j in range(1, i):
+				sum = sum + yearly[str(j)]
+
+			btm = list(sum)
+
+		ax.bar(x=xrange, height=yearly[str(i)], width=0.8, bottom=btm, color=colors[i], align="center", label=labels[i])
 
 	plt.xticks(ticks=range(len(years)), labels=years, rotation="vertical")
+	plt.tick_params(axis="y", left=True, right=True, labelleft=True, labelright=True)
 	plt.legend()
-	plt.grid(True, axis="x")
+	plt.grid(True, axis="y")
+	ax.set_axisbelow(True)
 	plt.savefig(f"{GRAPHS_PATH}topic_frequency_per_year.png")
 	plt.clf()
 
@@ -348,7 +368,7 @@ def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
 	top_recs_list = list(recs.sort_values(by="num_letters", ascending=False)["recipient"][:12])
 
 	fig, axs = plt.subplots(3, 4, figsize=(14, 9))
-	colors = ["indianred", "gold", "lightseagreen"]
+	colors = [cm.rainbow(float(i)/n_topics) for i in range(n_topics)]
 	columns = [str(i) for i in range(n_topics)]
 
 	it = 0
@@ -363,9 +383,10 @@ def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
 			it += 1
 
 	plt.savefig(f"{GRAPHS_PATH}topic_frequency_per_recipient.png")
+	plt.clf()
 
 
-# ----------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 
 vw: pd.DataFrame = read_dataframe(VW_PREPROCESSED)
 print("Pre-processed VW dataset successfully imported.")
@@ -387,12 +408,10 @@ lda = model(n_topics, saved=True)["model"]
 vws = get_topic_dists_dataframe(lda)
 vw, vws = set_main_topics(vw, vws)
 
-vw = vw[["recipient", "year", "place", "text"]].copy()
 dictionary_tokens: list = list(dictionary.token2id.keys())
 vw["text"] = vw["text"].apply(lambda tokens: [t for t in tokens if t in dictionary_tokens]) # remove words not in dict (most frequent, removed earlier)
 
-
-# save_representative_letters(lda, 5)
+# save_representative_letters(lda, 7, "Margaret Llewelyn Davies")
 # save_topic_wordclouds(lda)
-# plot_topics_per_year(vw)
+plot_topics_per_year(vw)
 # plot_topics_per_recipient(vw)
