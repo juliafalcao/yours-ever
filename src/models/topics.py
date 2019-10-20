@@ -21,7 +21,8 @@ from utils import *
 """
 constants
 """
-N_MOST_FREQUENT_TO_REMOVE: int = 110
+# N_MOST_FREQUENT_TO_REMOVE: int = 150
+IGNORE: int = 1
 
 """
 prints topics as word distributions
@@ -172,14 +173,21 @@ def build_letter_corpus(vw: pd.DataFrame) -> (list, list, corpora.dictionary.Dic
 	letters = list(vw["text"]) # each line is a tokenized letter
 	dictionary = corpora.Dictionary(letters)
 
-	dict_before = deepcopy(dictionary)
-	tokens_before = [dict_before[id] for id in dict_before]
-	dictionary.filter_n_most_frequent(N_MOST_FREQUENT_TO_REMOVE)
-	tokens_after = [dictionary[id] for id in dictionary]
-	removed = [token for token in tokens_before if token not in tokens_after]
-	log(removed, "removed_frequent_tokens")
+	"""
+	remove extremes (most frequent and least frequent) tokens
+	"""
+	original_dict = deepcopy(dictionary) # for logging purposes
+	original_tokens = [original_dict[id] for id in original_dict]
+	dictionary.filter_extremes(no_above=0.07, no_below=IGNORE) # remove most frequent (above 10% of corpus)
+	tokens_without_frequent = [dictionary[id] for id in dictionary]
+	removed_frequent = [token for token in original_tokens if token not in tokens_without_frequent]
+	log(removed_frequent, "removed_frequent_tokens")
+	dictionary.filter_extremes(no_below=4, no_above=IGNORE) # remove least frequent (below 4 documents)
+	tokens_without_rare = [dictionary[id] for id in dictionary]
+	removed_rare = [token for token in tokens_without_frequent if token not in tokens_without_rare]
+	log(removed_rare, "removed_rare_tokens")
 
-	print(F"Gensim dictionary initialized and stripped of {N_MOST_FREQUENT_TO_REMOVE} most frequent words.")
+	print(F"Gensim dictionary initialized and stripped of extremes: {len(removed_frequent)} frequent tokens and {len(removed_rare)} rare tokens. (Dictionary size: {len(original_dict)} -> {len(dictionary)})")
 
 	corpus = [dictionary.doc2bow(letter) for letter in letters]
 	print("Gensim corpus of BOWs initialized.")
@@ -203,7 +211,7 @@ def model(n_topics, beta=None, saved=False) -> dict:
 			corpus,
 			num_topics=n_topics,
 			id2word=dictionary,
-			passes=10,
+			passes=15,
 			eta=beta,
 			random_state=1,
 			workers=3
@@ -343,7 +351,7 @@ def plot_topics_per_year(vw: pd.DataFrame) -> None:
 	plt.legend()
 	plt.grid(True, axis="y")
 	ax.set_axisbelow(True)
-	plt.savefig(f"{GRAPHS_PATH}topic_frequency_per_year.png")
+	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_year.png")
 	plt.clf()
 
 """
@@ -375,14 +383,13 @@ def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
 	for i in range(3):
 		for j in range(4):
 			rec: str = top_recs_list[it]
-			print(rec)
 			row = recs[recs["recipient"] == rec][columns]
 			values = [int(row[col]) for col in row.columns]
-			axs[i,j].pie(values, colors=colors, labels=columns, labeldistance=0.5, textprops={"color": "white"})
+			axs[i,j].pie(values, colors=colors, labels=columns, labeldistance=0.5)
 			axs[i,j].set_xlabel(rec)
 			it += 1
 
-	plt.savefig(f"{GRAPHS_PATH}topic_frequency_per_recipient.png")
+	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_recipient.png")
 	plt.clf()
 
 
@@ -403,7 +410,7 @@ evaluate 3-topic model
 """
 
 n_topics = 3 # selected model
-lda = model(n_topics, saved=True)["model"]
+lda = model(n_topics, saved=False)["model"]
 
 vws = get_topic_dists_dataframe(lda)
 vw, vws = set_main_topics(vw, vws)
@@ -411,7 +418,7 @@ vw, vws = set_main_topics(vw, vws)
 dictionary_tokens: list = list(dictionary.token2id.keys())
 vw["text"] = vw["text"].apply(lambda tokens: [t for t in tokens if t in dictionary_tokens]) # remove words not in dict (most frequent, removed earlier)
 
-# save_representative_letters(lda, 7, "Margaret Llewelyn Davies")
-# save_topic_wordclouds(lda)
+save_representative_letters(lda, 5)
+save_topic_wordclouds(lda)
 plot_topics_per_year(vw)
-# plot_topics_per_recipient(vw)
+plot_topics_per_recipient(vw)
