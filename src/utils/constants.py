@@ -20,6 +20,7 @@ EXEC_LOGS_PATH = "reports/logs/"
 # VW: main dataset of letters
 VW_ORIGINAL = "data/interim/vw_original.csv"
 VW_PREPROCESSED = "data/interim/vw_preprocessed.json"
+VW_ASSIGNED = "data/processed/vw_assigned.json" # topic probabilities
 
 # VWP: dataset of paragraphs from the letters
 VWP_PREPROCESSED = "data/interim/vwp_preprocessed.json"

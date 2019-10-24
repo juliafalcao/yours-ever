@@ -9,10 +9,12 @@ from copy import deepcopy
 from nltk import pos_tag
 from gensim import corpora
 from gensim.models import LdaMulticore, CoherenceModel
+from gensim.models.ldamodel import LdaModel
 import pyLDAvis
 import pyLDAvis.gensim
 from sklearn.metrics import silhouette_samples, silhouette_score
 from wordcloud import WordCloud
+from time import time
 
 sys.path.append("src/utils")
 from constants import *
@@ -36,8 +38,8 @@ def print_model_topics(lda_model, n_words: int = 10):
 function that receives a model, a list of documents and a particular document id
 and returns its distribution of assigned topics
 """
-def get_document_topics(lda_model, documents: list, id: int) -> list:
-	bow = dictionary.doc2bow(documents[id])
+def get_document_topics(lda_model, tokens: list) -> list:
+	bow = dictionary.doc2bow(tokens)
 	topics = lda_model.get_document_topics(bow)
 	topics.sort(key=(lambda pair: pair[1]), reverse=True) # sort by highest to lowest probabilities
 	return topics
@@ -50,8 +52,8 @@ def get_paragraph_topics(lda_model, tokens: list) -> list:
 	return topics
 
 """
-argument: [(4, 0.79440266), (1, 0.20198905)]
-return: {'Topic 4': 0.79440266, 'Topic 1': 0.20198905, 'Topic 0': 0.0, 'Topic 2': 0.0, 'Topic 3': 0.0}
+receives: [(4, 0.79440266), (1, 0.20198905)]
+returns: {'Topic 4': 0.79440266, 'Topic 1': 0.20198905, 'Topic 0': 0.0, 'Topic 2': 0.0, 'Topic 3': 0.0}
 """
 def transform_topic_distribution(topic_dist: list, num_topics: int) -> dict:
 	topic_dict = {f"Topic {num}" : prob for (num, prob) in topic_dist}
@@ -70,7 +72,7 @@ function that receives a model and returns a dataframe of topic distributions (c
       ...
 """
 def get_topic_dists_dataframe(lda_model) -> pd.DataFrame:
-	topic_dists: pd.Series = vw.reset_index()["index"].apply(lambda i: get_document_topics(lda_model, letters, i))
+	topic_dists: pd.Series = vw.reset_index()["index"].apply(lambda i: get_document_topics(lda_model, letters[i]))
 	topic_dists.sort_index(axis=0)
 	vws = pd.DataFrame({f"Topic {t}":[] for t in range(lda_model.num_topics)})
 	vws.sort_index(axis=0)
@@ -80,15 +82,6 @@ def get_topic_dists_dataframe(lda_model) -> pd.DataFrame:
 	assert len(vws) == len(topic_dists)
 	return vws
 
-def get_paragraph_topic_dists_dataframe(lda_model):
-	topic_dists: pd.Series = vwp.reset_index()["index"].apply(lambda i: get_paragraph_topics(lda_model, vwp.at[i, "text"]))
-	topic_dists.sort_index(axis=0)
-	vwps = pd.DataFrame({f"Topic {t}":[] for t in range(lda_model.num_topics)})
-	vwps.sort_index(axis=0)
-	lines = topic_dists.apply(lambda t: transform_topic_distribution(t, lda_model.num_topics))
-	vwps = vwps.append(list(lines), ignore_index=True)
-	assert len(vwps) == len(topic_dists)
-	return vwps
 
 """
 compute average silhouette score
@@ -100,73 +93,121 @@ def compute_avg_silhouette(topic_df: pd.DataFrame) -> float:
 	return silhouette_score(points, mains)
 
 """
-plot silhouette scores per letter in corpus
+plot and save silhouette scores per letter in corpus
+receives: vws dataframe (topic dists)
 returns: average silhouette score
 """
-def plot_silhouette(lda_model, corpus) -> float:
-	n = 0
-	vws = get_topic_dists_dataframe(lda_model)
-	points = vws.values # matrix of shape (n_samples, n_topics)
+def plot_silhouette(vws: pd.DataFrame) -> float:
+	n = 0 # ?
+	cols = [col for col in vws.columns if "Topic" in col]
+	points = vws[cols].values # matrix of shape (n_samples, n_topics)
 	mains = points.argmax(axis=1) # array of dominant topics
 	fig, ax1 = plt.subplots(1, 1)
 	samples_silhouette_values = silhouette_samples(points, mains)
 	y_lower = 10 # ?
 
-	for i in range(lda_model.num_topics):
+	for i in range(n_topics):
 		ith_topic_silhouette_values = samples_silhouette_values[mains == i]
 		ith_topic_silhouette_values.sort()
 		size_topic_i = ith_topic_silhouette_values.shape[0]
 		y_upper = y_lower + size_topic_i
-		color = cm.rainbow(float(i) / lda_model.num_topics)
+		color = cm.rainbow(float(i) / n_topics)
 		ax1.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_topic_silhouette_values, facecolor=color, edgecolor=color, alpha=0.7)
 		ax1.text(-0.05, y_lower + 0.5 * size_topic_i, str(i))
 		y_lower = y_upper + 10
 
-	ax1.set_title("Silhouette plot for " + str(lda_model.num_topics) + " topics")
+	ax1.set_title("Silhouette plot for " + str(n_topics) + " topics")
 	ax1.set_xlabel("Silhouette coefficient")
 	ax1.set_ylabel("Topic number")
 	silhouette_avg = compute_avg_silhouette(vws)
-	print(f"Average silhouette score: {silhouette_avg}")
 	ax1.axvline(x=silhouette_avg, color="red", linestyle="--")
 	ax1.set_yticks([])
 	ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1]) # ?
-	plt.savefig(f"{SILHOUETTE_PLOTS_PATH}silhouette_lda{lda_model.num_topics}.png")
+	plt.savefig(f"{SILHOUETTE_PLOTS_PATH}silhouette_lda{n_topics}.png")
 	print("New silhouette plot generated and saved.")
-	plt.clf()
+	plt.close("all")
 
 	return silhouette_avg
 
 """
 function that saves most representative letters of each topic to text files for manual validation
+# TODO: receives?
 """
-def save_representative_letters(lda_model, n_letters: int = 3, recipient: str = None) -> None:
+def save_representative_letters(vws: pd.DataFrame, n_letters: int = 3, recipient: str = None) -> None:
 	assert n_letters > 0
+	assert "main" in vws.columns
 
 	vwo = pd.read_csv(VW_ORIGINAL, index_col="index")
 
 	if recipient is not None:
 		vws["recipient"] = vw["recipient"]
 		vws_copy = vws[vws["recipient"] == recipient].copy()
+		assert len(vws_copy) > 0
 		acronym = f"_{''.join([name[0] for name in recipient.split(' ')]).lower()}"
 	else:
 		vws_copy = vws
 		acronym = ""
 	
-	for t in range(lda_model.num_topics):
+	for t in range(n_topics):
 		vws_t = vws_copy[vws_copy["main"] == t]
 		vws_t = vws_t.sort_values(by=f"Topic {t}", ascending=False)
+
+		if len(vws_t) < n_letters: # in case there aren't n_letters
+			n_letters = len(vws_t)
 
 		for i in range(n_letters):
 			letter_id = vws_t.index[i]
 			vwo_row: pd.Series = vwo.loc[letter_id]
-			vwo_row.to_csv(f"{LDA_LETTERS_PATH}lda{lda_model.num_topics}{acronym}_topic{t}_letter{i}.csv", sep=":", header=True)
+			vwo_row["tokens"] = vw.at[letter_id, "text"] # save also actual tokens used in model
+			vwo_row.to_csv(f"{LDA_LETTERS_PATH}lda{n_topics}{acronym}_topic{t}_letter{i}.csv", sep=":", header=True)
 
 	print("Saved most representative letters for LDA model.")
+
+
+"""
+save n random letters assigned to all topics (for validation)
+"""
+def save_random_letters(vw: pd.DataFrame, n_letters: int = 3, recipient: str = None, year: int = None) -> None:
+	assert n_letters > 0
+	assert "main" in vw.columns
+
+	vwo = pd.read_csv(VW_ORIGINAL, index_col="index")
+
+	if recipient is not None:
+		vwr = vw[vw["recipient"] == recipient].copy()
+		assert len(vwr) > 0
+		suffix = f"_{''.join([name[0] for name in recipient.split(' ')]).lower()}"
+	else:
+		vwr = vw
+		suffix = ""
+	
+	if year is not None:
+		vwr = vw[vw["year"] == year].copy()
+		assert len(vwr) > 0
+		suffix = f"_{year}"
+	else:
+		vwr = vw
+		suffix = ""
+	
+	for t in range(n_topics):
+		vwr_t = vwr[vwr["main"] == t]
+
+		if len(vwr_t) < n_letters: # in case there aren't n_letters
+			n_letters = len(vwr_t)
+		
+		chosen_ids = list(vwr_t.sample(n_letters).index) # random sample
+
+		for letter_id in chosen_ids:
+			vwo_row: pd.Series = vwo.loc[letter_id]
+			vwo_row["tokens"] = vw.at[letter_id, "text"] # save also actual tokens used in model
+			vwo_row.to_csv(f"{LDA_LETTERS_PATH}lda{n_topics}_topic{t}{suffix}_random{letter_id}.csv", sep=":", header=True)
+
+	print(f"Saved {n_letters} random letters for each topic of LDA model.")
 
 """
 create dictionary and corpus of bags-of-words
 """
-def build_letter_corpus(vw: pd.DataFrame) -> (list, list, corpora.dictionary.Dictionary):
+def build_letter_corpus(vw: pd.DataFrame) -> (pd.DataFrame, list, list, corpora.dictionary.Dictionary):
 	vw["text"] = vw["text"].apply(lambda tokens: [t for t in tokens if t != PARAGRAPH_DELIM]) # remove paragraph delim
 
 	vw = vw.sort_index(axis=0)
@@ -189,21 +230,34 @@ def build_letter_corpus(vw: pd.DataFrame) -> (list, list, corpora.dictionary.Dic
 
 	print(F"Gensim dictionary initialized and stripped of extremes: {len(removed_frequent)} frequent tokens and {len(removed_rare)} rare tokens. (Dictionary size: {len(original_dict)} -> {len(dictionary)})")
 
+	dictionary_tokens: list = list(dictionary.token2id.keys())
+	vw["text"] = vw["text"].apply(lambda tokens: [t for t in tokens if t in dictionary_tokens])
+	# remove from vw the tokens that have been removed from dictionary
+
 	corpus = [dictionary.doc2bow(letter) for letter in letters]
 	print("Gensim corpus of BOWs initialized.")
 
-	return letters, corpus, dictionary
+	return vw, letters, corpus, dictionary
 
 
 """
 function that builds an LDA model and returns the model and some evaluation metrics
+parameters:
+	n_topics: number of topics (K) for the LDA model
+	beta: the LDA beta ('eta' on gensim) hyperparameter
+	saved: whether to load saved LDA model (True) or train from scratch and save (False)
+	pyldavis: whether to prepare [long execution time!] and save HTML of pyLDAvis visualization model
+	wordclouds: whether to generate new topic wordclouds
+	rep_letters: whether to save most representative letters for each topic
+	plots: whether to plot and save the graphs of topics per year and per recipient
 """
-def model(n_topics, beta=None, saved=False) -> dict:
+def model(n_topics, alpha=None, beta=None, saved=False, pyldavis=False, wordclouds=False, rep_letters=False, plots=False) -> dict:
+	assert n_topics >= 2
+
 	print(f"Building LDA model for {n_topics} topics.")
-	suffix = f"beta{beta}" if beta is not None else ""
 
 	if saved:
-		lda = LdaMulticore.load(f"{TRAINED_LDA}{n_topics}{suffix}")
+		lda = LdaMulticore.load(f"{TRAINED_LDA}{n_topics}")
 		print(f"Trained LDA model with {n_topics} topics loaded successfully.")
 
 	else:
@@ -211,14 +265,26 @@ def model(n_topics, beta=None, saved=False) -> dict:
 			corpus,
 			num_topics=n_topics,
 			id2word=dictionary,
-			passes=15,
+			passes=20,
+			alpha=alpha if alpha is not None else "symmetric", # default
 			eta=beta,
 			random_state=1,
+			iterations=80,
+			eval_every=5,
 			workers=3
 		)
 
-		lda.save(f"{TRAINED_LDA}{n_topics}{suffix}")
+		lda.save(f"{TRAINED_LDA}{n_topics}")
 		print(f"LDA model with {n_topics} topics trained and saved successfully.")
+
+	"""
+	save topic assignment info in dataframes
+	[!] alters global variables
+	"""
+	global vw
+	global vws
+	vws = get_topic_dists_dataframe(lda)
+	vw, vws = set_main_topics(vw, vws)
 
 	"""
 	coherence and silhouette scores
@@ -226,16 +292,31 @@ def model(n_topics, beta=None, saved=False) -> dict:
 	coherence = CoherenceModel(model=lda, texts=letters, dictionary=dictionary, coherence='c_v').get_coherence()
 	print(f"Coherence score: {coherence}") # the higher the better
 
-	avg_silhouette = plot_silhouette(lda, corpus)
+	avg_silhouette = plot_silhouette(vws)
+	print(f"Average silhouette coefficient: {avg_silhouette}") # the higher the better
 
 	"""
-	prepare and save pyLDAvis visualization
+	other validation methods
 	"""
-	# vis = pyLDAvis.gensim.prepare(topic_model=lda, corpus=corpus, dictionary=dictionary, n_jobs=3)
-	# pyLDAvis.save_html(vis, f"{PYLDAVIS_PATH}/lda{n_topics}.html")
+	if pyldavis:
+		vis = pyLDAvis.gensim.prepare(topic_model=lda, corpus=corpus, dictionary=dictionary, n_jobs=3)
+		pyLDAvis.save_html(vis, f"{PYLDAVIS_PATH}/lda{n_topics}.html")
+	
+	if rep_letters:
+		save_representative_letters(vws, 3)
+	
+	if wordclouds:
+		save_topic_wordclouds(vw)
+
+	if plots:	
+		plot_topics_per_year(vw)
+		plot_topics_per_recipient(vw)
 
 	return {
 		"model": lda,
+		"num_topics": n_topics,
+		"alpha": alpha,
+		"beta": beta,
 		"coherence": coherence,
 		"silhouette": avg_silhouette
 		}
@@ -243,26 +324,42 @@ def model(n_topics, beta=None, saved=False) -> dict:
 
 """
 function to compare LDA models built with the given N values
+receives: list of candidate n_topics to compare, i.e. [3, 5, 7, 10]
+returns: results dataframe
+		topics  coherence  silhouette
+	0       3   0.242163    0.627356
+	1       4   0.198382    0.629180
 """
-def compare_models(candidate_n_topics: list) -> pd.DataFrame:
-	results = pd.DataFrame({"topics": [], "coherence": [], "silhouette": []})
 
-	for n_topics in candidate_n_topics:
-		result = model(n_topics, saved=False)
-		
-		results = results.append({
-			"topics": n_topics,
+def compare_models(k_values: list, alpha_values: list, beta_values: list) -> pd.DataFrame:
+	timestamp = int(time())
+	results: list = []
+	df_results = pd.DataFrame({"num_topics": [], "alpha": [], "beta": [], "coherence": [], "silhouette": []})
+
+	for num_topics in k_values:
+		for alpha in alpha_values:
+			for beta in beta_values:
+				result = model(num_topics, alpha=alpha, beta=beta, saved=False, wordclouds=True)
+				results.append(result)
+	
+
+	for result in results:
+		df_results = df_results.append({
+			"num_topics": result["num_topics"],
+			"alpha": result["alpha"],
+			"beta": result["beta"],
 			"coherence": result["coherence"],
 			"silhouette": result["silhouette"]
 		}, ignore_index=True)
-	
-	results["topics"] = pd.to_numeric(results["topics"], downcast="integer")
 
-	log(results, "comparison_results")
-	return results
+	df_results["num_topics"] = pd.to_numeric(df_results["num_topics"], downcast="integer")
+	df_results.to_csv(f"{EXEC_LOGS_PATH}comparison_results_{timestamp}.csv")
+		
+	return results, df_results
 
 """
 plot coherence and silhouette scores for candidate models
+receives: results dict (output of compare_models)
 """
 def plot_metrics(results: list) -> None:
 	fig, (ax1, ax2) = plt.subplots(2, 1)
@@ -274,27 +371,33 @@ def plot_metrics(results: list) -> None:
 	ax1.grid(True)
 	ax2.grid(True)
 	plt.savefig(f"{GRAPHS_PATH}metrics_per_num_topics.png")
+
 	print("Saved plot of metrics comparison between different numbers of topics.")
-	plt.clf()
+	plt.close("all")
 
 """
 generates and saves wordclouds per topic of a given LDA model
+receives: vw dataframe with "main" column
 """
-def save_topic_wordclouds(lda_model) -> None:
-	for i in range(lda_model.num_topics):
+def save_topic_wordclouds(vw: pd.DataFrame) -> None:
+	assert "main" in vw.columns
+
+	for i in range(n_topics):
 		letters: pd.Series = vw[vw["main"] == i]["text"]
 		all_letters = concat_all_letters(letters)
-		wordcloud = WordCloud(width=500, height=400, background_color="white", max_words=100).generate(all_letters)
+		wordcloud = WordCloud(width=600, height=500, background_color="white", max_words=300).generate(all_letters)
 		plt.imshow(wordcloud, interpolation="bilinear")
 		plt.axis("off")
 		plt.savefig(f"{TOPIC_WORDCLOUDS_PATH}wordcloud_lda{n_topics}_topic{i}.png")
 		plt.clf()
 
 	print("Saved topic wordclouds for LDA model.")
+	plt.close("all")
 
 
 """
 function that includes main topic column in vw dataframe, or -1 if all topics have the same probability
+receives: vw (original dataset); vws (topics distribution dataframe)
 """
 def set_main_topics(vw: pd.DataFrame, vws: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
 
@@ -352,7 +455,7 @@ def plot_topics_per_year(vw: pd.DataFrame) -> None:
 	plt.grid(True, axis="y")
 	ax.set_axisbelow(True)
 	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_year.png")
-	plt.clf()
+	plt.close("all")
 
 """
 function that makes 12 pie charts for topic frequencies in letters to the top 12 recipients
@@ -390,35 +493,31 @@ def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
 			it += 1
 
 	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_recipient.png")
-	plt.clf()
-
+	plt.close("all")
 
 # --------------------------------------------------------------------------
 
-vw: pd.DataFrame = read_dataframe(VW_PREPROCESSED)
+vw = read_dataframe(VW_PREPROCESSED)
 print("Pre-processed VW dataset successfully imported.")
-letters, corpus, dictionary = build_letter_corpus(vw)
+vw, letters, corpus, dictionary = build_letter_corpus(vw)
+vws = pd.DataFrame() # global var
 
 """
 compare models
 """
-# results = compare_models([3, 4, 5, 6, 7, 8, 9, 10])
+n_topics = 0 # global var
+# results = compare_models([3, 4, 5, 6, 7, 8])
 # plot_metrics(results)
 
 """
 evaluate 3-topic model
 """
+n_topics = 5
+# results, df_results = compare_models([3, 4, 5], ["symmetric", "asymmetric", 0.5], [0.1, 0.3, 0.9])
+# df_results = df_results.sort_values(by=["coherence", "silhouette"], ascending=[False, False])
 
-n_topics = 3 # selected model
-lda = model(n_topics, saved=False)["model"]
+lda3 = model(3, alpha="asymmetric", beta=0.9, saved=False, wordclouds=True, rep_letters=True, plots=True)["model"] # highest silhouette
+lda5 = model(5, alpha="asymmetric", beta=0.9, saved=False, wordclouds=True, rep_letters=True, plots=True)["model"] # highest coherence
 
-vws = get_topic_dists_dataframe(lda)
-vw, vws = set_main_topics(vw, vws)
-
-dictionary_tokens: list = list(dictionary.token2id.keys())
-vw["text"] = vw["text"].apply(lambda tokens: [t for t in tokens if t in dictionary_tokens]) # remove words not in dict (most frequent, removed earlier)
-
-save_representative_letters(lda, 5)
-save_topic_wordclouds(lda)
-plot_topics_per_year(vw)
-plot_topics_per_recipient(vw)
+plt.close("all")
+# vws.to_json(VW_ASSIGNED, orient="index")

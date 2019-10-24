@@ -3,6 +3,7 @@
 import pandas as pd 
 import codecs
 from constants import *
+from datetime import datetime
 
 """
 function that receives a letter index and returns the original letter text a string
@@ -60,3 +61,7 @@ def log(something, filename: str):
 		print(f"Logged: {filepath}")
 	
 	return
+
+def get_timestamp():
+	dt = datetime.now()
+	return f"{dt.day}-{dt.month}T{timestamp.hour}:{timestamp.minute}"
