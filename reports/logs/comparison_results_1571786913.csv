@@ -1,4 +1,4 @@
-,num_topics,alpha,beta,coherence,silhouette
+index,num_topics,alpha,beta,coherence,silhouette
 0,3.0,symmetric,0.1,0.2580985749271175,0.6263478958440974
 1,3.0,symmetric,0.3,0.26354496347377604,0.6304293098835966
 2,3.0,symmetric,0.9,0.2899821624697706,0.6368017693298815

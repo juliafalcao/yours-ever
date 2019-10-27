@@ -3,6 +3,7 @@
 import sys, codecs, warnings
 import pandas as pd
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from copy import deepcopy
@@ -15,6 +16,7 @@ import pyLDAvis.gensim
 from sklearn.metrics import silhouette_samples, silhouette_score
 from wordcloud import WordCloud
 from time import time
+from matplotlib.lines import Line2D
 
 sys.path.append("src/utils")
 from constants import *
@@ -330,16 +332,19 @@ returns: results dataframe
 	0       3   0.242163    0.627356
 	1       4   0.198382    0.629180
 """
-
 def compare_models(k_values: list, alpha_values: list, beta_values: list) -> pd.DataFrame:
 	timestamp = int(time())
 	results: list = []
 	df_results = pd.DataFrame({"num_topics": [], "alpha": [], "beta": [], "coherence": [], "silhouette": []})
 
 	for num_topics in k_values:
+		global n_topics
+		n_topics = num_topics
+
 		for alpha in alpha_values:
 			for beta in beta_values:
-				result = model(num_topics, alpha=alpha, beta=beta, saved=False, wordclouds=True)
+				print(f"BUILDING: num_topics={num_topics}, alpha={alpha}, beta={beta}")
+				result = model(num_topics, alpha=alpha, beta=beta, saved=False)
 				results.append(result)
 	
 
@@ -353,7 +358,7 @@ def compare_models(k_values: list, alpha_values: list, beta_values: list) -> pd.
 		}, ignore_index=True)
 
 	df_results["num_topics"] = pd.to_numeric(df_results["num_topics"], downcast="integer")
-	df_results.to_csv(f"{EXEC_LOGS_PATH}comparison_results_{timestamp}.csv")
+	df_results.to_csv(f"{EXEC_LOGS_PATH}comparison_results_{timestamp}.csv", index_label="index")
 		
 	return results, df_results
 
@@ -495,29 +500,146 @@ def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
 	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_recipient.png")
 	plt.close("all")
 
+"""
+makes scatter plot comparing models by alpha and beta
+"""
+def plot_results_old(results: pd.DataFrame):
+	results["num_topics"] = pd.to_numeric(results["num_topics"], downcast="integer")
+	n_subplots = 3
+
+	alpha_markers = {
+		"asymmetric": "*", # asterisk: (5, 2)
+		"symmetric": "o", # ?
+		"0.3": "^", # triangle
+		"0.5": (5, 0), # pentagon
+		"0.7": "+"
+	}
+
+	beta_colors = {beta : cm.viridis.reversed()(beta) for beta in set(results["beta"])}
+
+	fig = plt.figure(figsize=(8,8))
+	gs = fig.add_gridspec(nrows=3, ncols=2, width_ratios=[7, 0.2], height_ratios=[2.5, 2.5, 2.5], hspace=0.5, wspace=0.1)
+	axs = [] # actual scatter plot axes
+	axs.append(fig.add_subplot(gs[0, 0]))
+	axs.append(fig.add_subplot(gs[1, 0], sharex=axs[0], sharey=axs[0]))
+	axs.append(fig.add_subplot(gs[2, 0], sharex=axs[0], sharey=axs[0]))
+	axc = fig.add_subplot(gs[:,1]) # ax for the colorbar
+
+	for n_topics in [3, 4, 5]:
+		results_t = results[results["num_topics"] == n_topics]
+		i = n_topics - n_subplots # axis index
+		for index, row in results_t.iterrows():
+			axs[i].plot(
+				row["silhouette"],
+				row["coherence"],
+				marker=alpha_markers[row["alpha"]],
+				color=beta_colors[row["beta"]],
+				markersize=8
+			)
+			axs[i].grid(True, axis="both", alpha=0.2)
+			axs[i].set_title(f"k = {n_topics}", loc="left")
+
+	legend_elems = []
+	for label, marker in list(alpha_markers.items()):
+		legend_elems.append(Line2D([0], [0], marker=marker, color="white", markeredgecolor="grey", markerfacecolor="grey", markersize=10, label=label))
+
+	axs[0].tick_params(axis="both", bottom=True, left=True, labelbottom=True, labelleft=True, right=True, labelright=True)
+	axs[1].tick_params(axis="both", bottom=True, left=True, labelbottom=True, labelleft=True, right=True, labelright=True)
+	axs[2].tick_params(axis="both", bottom=True, left=True, labelbottom=True, labelleft=True, right=True, labelright=True)
+	axs[2].set_xlabel("average silhouette coefficient", fontsize="large")
+	axs[1].set_ylabel("coherence score", fontsize="large")
+	axs[0].legend(handles=legend_elems, framealpha=1, loc="upper left", edgecolor="black", title="alpha", fancybox=False, fontsize="small")
+
+
+	cb = mpl.colorbar.ColorbarBase(axc, cmap=cm.viridis.reversed(), norm=mpl.colors.Normalize(vmin=0, vmax=1), orientation="vertical")
+	axc.set_xlabel("beta", fontsize="large")
+	plt.show()
+
+
+def plot_results(results: pd.DataFrame):
+	results = results[results["beta"] != "auto"]
+
+	alpha_markers = {
+		"asymmetric": "*", # star
+		"symmetric": "o",
+		"0.3": "^", # triangle
+		"0.5": (5, 0), # pentagon
+		"0.7": "+"
+	}
+
+	beta_colors = {beta : cm.rainbow(beta) for beta in set(results["beta"])}
+
+	results["num_topics"] = pd.to_numeric(results["num_topics"], downcast="integer")
+	results.sort_values(by=["silhouette", "coherence", "beta"], ascending=[False, False, False])
+	k_values = [3, 4, 5, 6]
+	n_subplots = len(k_values)
+
+	fig, axs = plt.subplots(nrows=3, ncols=2, sharex=True, sharey=True)
+	plt.subplots_adjust(hspace=0.6, wspace=0.3)
+
+	gs = axs[2,0].get_gridspec()
+	axs[2,0].remove()
+	axs[2,1].remove()
+	axl = fig.add_subplot(gs[2:, :])
+	axl.tick_params(axis="both", left=False, bottom=False, labelbottom=False, labelleft=False)
+	axl.axis(False)
+
+	# later
+	axs = [axs[0,0], axs[0,1], axs[1,0], axs[1,1]] # flatten
+
+	for i in range(n_subplots):
+			n_topics = k_values[i]
+			results_t = results[results["num_topics"] == n_topics]
+			for index, row in results_t.iterrows():
+				ax = axs[i] # easier to change later
+				ax.plot(
+					row["silhouette"],
+					row["coherence"],
+					marker=alpha_markers[row["alpha"]],
+					color=beta_colors[row["beta"]],
+					markersize=8
+				)
+				ax.set_title(f"K = {n_topics}", loc="center")
+				ax.tick_params(axis="both", left=False, bottom=False, labelleft=True, labelbottom=True, labelsize="small")
+				ax.grid(axis="both", color="grey", alpha=0.5)
+
+	# fig.text(0.5, 0.04, "Silhouette", ha="center")
+	# fig.text(0.04, 0.5, "Coherence", va="center", rotation="vertical")
+	axs[0].set_ylabel("Coherence")
+	axs[2].set_ylabel("Coherence")
+	axs[2].set_xlabel("Silhouette")
+	axs[3].set_xlabel("Silhouette")
+
+	legend_elems = []
+	legend_elems.append(Line2D([0], [0], marker="s", color="white", markerfacecolor="white", markeredgecolor="white", label="ALPHA")) # first title
+
+	for label, marker in list(alpha_markers.items()): # legend for alpha markers
+		legend_elems.append(Line2D([0], [0], marker=marker, color="white", markeredgecolor="grey", markerfacecolor="grey", markersize=10, label=label))
+
+	legend_elems.append(Line2D([0], [0], marker="s", color="white", markerfacecolor="white", markeredgecolor="white", label="BETA")) # second title
+	for label, color in list(beta_colors.items()): # legend for beta colors (squares in given color)
+		legend_elems.append(Line2D([0], [0], marker="s", color="white", markeredgecolor=color, markerfacecolor=color, markersize=10, label=label))
+
+	axl.legend(handles=legend_elems, framealpha=1, loc="upper center", edgecolor="grey", fontsize="small", ncol=4, borderpad=1)
+
+	plt.show()
+
 # --------------------------------------------------------------------------
 
 vw = read_dataframe(VW_PREPROCESSED)
 print("Pre-processed VW dataset successfully imported.")
-vw, letters, corpus, dictionary = build_letter_corpus(vw)
+# vw, letters, corpus, dictionary = build_letter_corpus(vw)
 vws = pd.DataFrame() # global var
 
-"""
-compare models
-"""
-n_topics = 0 # global var
-# results = compare_models([3, 4, 5, 6, 7, 8])
-# plot_metrics(results)
+n_topics = -1 # global var
+# _, results_df = compare_models(
+# 	k_values=[3, 4, 5],
+# 	alpha_values=["asymmetric"],
+# 	beta_values=["auto"]
+# )
 
-"""
-evaluate 3-topic model
-"""
-n_topics = 5
-# results, df_results = compare_models([3, 4, 5], ["symmetric", "asymmetric", 0.5], [0.1, 0.3, 0.9])
-# df_results = df_results.sort_values(by=["coherence", "silhouette"], ascending=[False, False])
-
-lda3 = model(3, alpha="asymmetric", beta=0.9, saved=False, wordclouds=True, rep_letters=True, plots=True)["model"] # highest silhouette
-lda5 = model(5, alpha="asymmetric", beta=0.9, saved=False, wordclouds=True, rep_letters=True, plots=True)["model"] # highest coherence
-
-plt.close("all")
-# vws.to_json(VW_ASSIGNED, orient="index")
+# plot results
+results1 = pd.read_csv("reports/logs/comparison_results_1572102344.csv", index_col="index")
+results2 = pd.read_csv("reports/logs/comparison_results_1572118571.csv", index_col="index")
+results = results1.append(results2, ignore_index=True)
+plot_results(results)
