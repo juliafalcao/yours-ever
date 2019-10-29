@@ -17,10 +17,12 @@ from sklearn.metrics import silhouette_samples, silhouette_score
 from wordcloud import WordCloud
 from time import time
 from matplotlib.lines import Line2D
+from matplotlib.ticker import FormatStrFormatter
 
 sys.path.append("src/utils")
 from constants import *
 from utils import *
+from plotting import *
 
 """
 constants
@@ -256,10 +258,34 @@ parameters:
 def model(n_topics, alpha=None, beta=None, saved=False, pyldavis=False, wordclouds=False, rep_letters=False, plots=False) -> dict:
 	assert n_topics >= 2
 
+	"""
+	aux functions to make sure it's loading the desired model
+	"""
+	def verify_alpha(lda_model, given):
+		actual: list = lda_model.alpha
+		if given == "asymmetric":
+			return actual[0] != actual[-1]
+		elif given == "symmetric":
+			return actual[0] == actual[-1]
+		else:
+			return actual[0] == actual[-1] == given
+	
+	def verify_beta(lda_model, given):
+		actual = lda_model.eta
+		if type(given) == float:
+			return actual[0] == actual[-1] == given
+		else:
+			return False
+
 	print(f"Building LDA model for {n_topics} topics.")
 
 	if saved:
 		lda = LdaMulticore.load(f"{TRAINED_LDA}{n_topics}")
+
+		if not (verify_alpha(lda, alpha) and verify_beta(lda, beta)):
+			print("Loaded model didn't pass parameter verification; train it from scratch or load the correct one.")
+			return
+
 		print(f"Trained LDA model with {n_topics} topics loaded successfully.")
 
 	else:
@@ -574,7 +600,7 @@ def plot_results(results: pd.DataFrame):
 	k_values = [3, 4, 5, 6]
 	n_subplots = len(k_values)
 
-	fig, axs = plt.subplots(nrows=3, ncols=2, sharex=True, sharey=True)
+	fig, axs = plt.subplots(nrows=3, ncols=2, sharex=True, sharey=True, figsize=(6,10))
 	plt.subplots_adjust(hspace=0.6, wspace=0.3)
 
 	gs = axs[2,0].get_gridspec()
@@ -622,13 +648,17 @@ def plot_results(results: pd.DataFrame):
 
 	axl.legend(handles=legend_elems, framealpha=1, loc="upper center", edgecolor="grey", fontsize="small", ncol=4, borderpad=1)
 
+	# hide leading zeroes (makes tick labels unchangeable; must adjust figsize first)
+	# axs[0].set_yticklabels([str(x)[1:] for x in np.round(ax.get_yticks(), 3)])
+	# axs[0].set_xticklabels([str(x)[1:] for x in np.round(ax.get_xticks(), 3)])
+
 	plt.show()
 
 # --------------------------------------------------------------------------
 
 vw = read_dataframe(VW_PREPROCESSED)
 print("Pre-processed VW dataset successfully imported.")
-# vw, letters, corpus, dictionary = build_letter_corpus(vw)
+vw, letters, corpus, dictionary = build_letter_corpus(vw)
 vws = pd.DataFrame() # global var
 
 n_topics = -1 # global var
@@ -639,7 +669,22 @@ n_topics = -1 # global var
 # )
 
 # plot results
-results1 = pd.read_csv("reports/logs/comparison_results_1572102344.csv", index_col="index")
-results2 = pd.read_csv("reports/logs/comparison_results_1572118571.csv", index_col="index")
-results = results1.append(results2, ignore_index=True)
-plot_results(results)
+# results1 = pd.read_csv("reports/logs/comparison_results_1572102344.csv", index_col="index")
+# results2 = pd.read_csv("reports/logs/comparison_results_1572118571.csv", index_col="index")
+# results = results1.append(results2, ignore_index=True)
+# results = results.sort_values(by=["silhouette", "coherence"], ascending=[False, False])
+# results.to_csv("reports/logs/comparison_results.csv", index_label="index")
+# plot_results(results)
+
+"""
+eval
+"""
+n_topics = 3
+
+lda3a9 = model(3, alpha="asymmetric", beta=0.9, saved=False, pyldavis=True)["model"]
+
+n_topics = 4
+lda4a9 = model(4, alpha="asymmetric", beta=0.9, saved=False, pyldavis=True)["model"]
+
+n_topics = 5
+lda5a9 = model(5, alpha="asymmetric", beta=0.9, saved=False, pyldavis=True)["model"]

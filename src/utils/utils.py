@@ -65,3 +65,17 @@ def log(something, filename: str):
 def get_timestamp():
 	dt = datetime.now()
 	return f"{dt.day}-{dt.month}T{timestamp.hour}:{timestamp.minute}"
+
+
+def get_model_name(lda_model):
+	k = lda_model.num_topics
+
+	alpha = lda_model.alpha
+	if (alpha[0] != alpha[-1]): # asymmetric alpha
+		alpha = "a"
+	else:
+		alpha = str(alpha[0]).split(".") # symmetric alpha
+
+	beta = str(lda_model.eta[0])[2:] # symmetric beta
+
+	return f"lda{3}-{alpha}-{beta}"
