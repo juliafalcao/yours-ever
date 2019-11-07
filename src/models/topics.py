@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import sys, codecs, warnings
+import sys, codecs
 import pandas as pd
 import numpy as np
 import matplotlib as mpl
@@ -16,8 +16,6 @@ import pyLDAvis.gensim
 from sklearn.metrics import silhouette_samples, silhouette_score
 from wordcloud import WordCloud
 from time import time
-from matplotlib.lines import Line2D
-from matplotlib.ticker import FormatStrFormatter
 
 sys.path.append("src/utils")
 from constants import *
@@ -42,10 +40,18 @@ def print_model_topics(lda_model, n_words: int = 10):
 function that receives a model, a list of documents and a particular document id
 and returns its distribution of assigned topics
 """
-def get_document_topics(lda_model, tokens: list) -> list:
+def get_document_topics(lda_model, tokens: list, letter_id = -1) -> list:
 	bow = dictionary.doc2bow(tokens)
-	topics = lda_model.get_document_topics(bow)
+	res = lda_model.get_document_topics(bow, per_word_topics=True)
+	topics = res[0]
+	phi = res[2]
 	topics.sort(key=(lambda pair: pair[1]), reverse=True) # sort by highest to lowest probabilities
+	# insert per_word_topics into matrix
+	for (word_id, topic_phi) in phi:
+		occurs = int(np.ceil(np.sum([phi for (topic, phi) in topic_phi], axis=0))) # number of word occurrences in doc
+		for (topic, phi) in topic_phi:
+			pwt[word_id][topic][letter_id] = phi/occurs
+			# dividing each word's phi value by the number of occurrences so that they'll add up to 1 in the end
 	return topics
 
 
@@ -76,7 +82,7 @@ function that receives a model and returns a dataframe of topic distributions (c
       ...
 """
 def get_topic_dists_dataframe(lda_model) -> pd.DataFrame:
-	topic_dists: pd.Series = vw.reset_index()["index"].apply(lambda i: get_document_topics(lda_model, letters[i]))
+	topic_dists: pd.Series = vw.reset_index()["index"].apply(lambda i: get_document_topics(lda_model, letters[i], i))
 	topic_dists.sort_index(axis=0)
 	vws = pd.DataFrame({f"Topic {t}":[] for t in range(lda_model.num_topics)})
 	vws.sort_index(axis=0)
@@ -86,52 +92,6 @@ def get_topic_dists_dataframe(lda_model) -> pd.DataFrame:
 	assert len(vws) == len(topic_dists)
 	return vws
 
-
-"""
-compute average silhouette score
-"""
-def compute_avg_silhouette(topic_df: pd.DataFrame) -> float:
-	points = topic_df.values
-	mains = points.argmax(axis=1)
-
-	return silhouette_score(points, mains)
-
-"""
-plot and save silhouette scores per letter in corpus
-receives: vws dataframe (topic dists)
-returns: average silhouette score
-"""
-def plot_silhouette(vws: pd.DataFrame) -> float:
-	n = 0 # ?
-	cols = [col for col in vws.columns if "Topic" in col]
-	points = vws[cols].values # matrix of shape (n_samples, n_topics)
-	mains = points.argmax(axis=1) # array of dominant topics
-	fig, ax1 = plt.subplots(1, 1)
-	samples_silhouette_values = silhouette_samples(points, mains)
-	y_lower = 10 # ?
-
-	for i in range(n_topics):
-		ith_topic_silhouette_values = samples_silhouette_values[mains == i]
-		ith_topic_silhouette_values.sort()
-		size_topic_i = ith_topic_silhouette_values.shape[0]
-		y_upper = y_lower + size_topic_i
-		color = cm.rainbow(float(i) / n_topics)
-		ax1.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_topic_silhouette_values, facecolor=color, edgecolor=color, alpha=0.7)
-		ax1.text(-0.05, y_lower + 0.5 * size_topic_i, str(i))
-		y_lower = y_upper + 10
-
-	ax1.set_title("Silhouette plot for " + str(n_topics) + " topics")
-	ax1.set_xlabel("Silhouette coefficient")
-	ax1.set_ylabel("Topic number")
-	silhouette_avg = compute_avg_silhouette(vws)
-	ax1.axvline(x=silhouette_avg, color="red", linestyle="--")
-	ax1.set_yticks([])
-	ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1]) # ?
-	plt.savefig(f"{SILHOUETTE_PLOTS_PATH}silhouette_lda{n_topics}.png")
-	print("New silhouette plot generated and saved.")
-	plt.close("all")
-
-	return silhouette_avg
 
 """
 function that saves most representative letters of each topic to text files for manual validation
@@ -171,26 +131,26 @@ def save_representative_letters(vws: pd.DataFrame, n_letters: int = 3, recipient
 """
 save n random letters assigned to all topics (for validation)
 """
-def save_random_letters(vw: pd.DataFrame, n_letters: int = 3, recipient: str = None, year: int = None) -> None:
+def save_random_letters(vws: pd.DataFrame, n_letters: int = 3, recipient: str = None, year: int = None) -> None:
 	assert n_letters > 0
-	assert "main" in vw.columns
+	assert "main" in vws.columns
 
 	vwo = pd.read_csv(VW_ORIGINAL, index_col="index")
 
 	if recipient is not None:
-		vwr = vw[vw["recipient"] == recipient].copy()
+		vwr = vws[vw["recipient"] == recipient].copy()
 		assert len(vwr) > 0
 		suffix = f"_{''.join([name[0] for name in recipient.split(' ')]).lower()}"
 	else:
-		vwr = vw
+		vwr = vws
 		suffix = ""
 	
 	if year is not None:
-		vwr = vw[vw["year"] == year].copy()
+		vwr = vws[vws["year"] == year].copy()
 		assert len(vwr) > 0
 		suffix = f"_{year}"
 	else:
-		vwr = vw
+		vwr = vws
 		suffix = ""
 	
 	for t in range(n_topics):
@@ -203,8 +163,8 @@ def save_random_letters(vw: pd.DataFrame, n_letters: int = 3, recipient: str = N
 
 		for letter_id in chosen_ids:
 			vwo_row: pd.Series = vwo.loc[letter_id]
-			vwo_row["tokens"] = vw.at[letter_id, "text"] # save also actual tokens used in model
-			vwo_row.to_csv(f"{LDA_LETTERS_PATH}lda{n_topics}_topic{t}{suffix}_random{letter_id}.csv", sep=":", header=True)
+			vwo_row["tokens"] = vws.at[letter_id, "text"] # save also actual tokens used in model
+			vwo_row.to_csv(f"{LDA_LETTERS_PATH}lda{n_topics}_topic{t}{suffix}_random{letter_id}_{suffix}.csv", sep=":", header=True)
 
 	print(f"Saved {n_letters} random letters for each topic of LDA model.")
 
@@ -223,7 +183,7 @@ def build_letter_corpus(vw: pd.DataFrame) -> (pd.DataFrame, list, list, corpora.
 	"""
 	original_dict = deepcopy(dictionary) # for logging purposes
 	original_tokens = [original_dict[id] for id in original_dict]
-	dictionary.filter_extremes(no_above=0.07, no_below=IGNORE) # remove most frequent (above 10% of corpus)
+	dictionary.filter_extremes(no_above=0.1, no_below=IGNORE) # remove most frequent
 	tokens_without_frequent = [dictionary[id] for id in dictionary]
 	removed_frequent = [token for token in original_tokens if token not in tokens_without_frequent]
 	log(removed_frequent, "removed_frequent_tokens")
@@ -235,8 +195,9 @@ def build_letter_corpus(vw: pd.DataFrame) -> (pd.DataFrame, list, list, corpora.
 	print(F"Gensim dictionary initialized and stripped of extremes: {len(removed_frequent)} frequent tokens and {len(removed_rare)} rare tokens. (Dictionary size: {len(original_dict)} -> {len(dictionary)})")
 
 	dictionary_tokens: list = list(dictionary.token2id.keys())
-	vw["text"] = vw["text"].apply(lambda tokens: [t for t in tokens if t in dictionary_tokens])
+	# vw["text"] = vw["text"].apply(lambda tokens: [t for t in tokens if t in dictionary_tokens])
 	# remove from vw the tokens that have been removed from dictionary
+	# [!] takes ages to run
 
 	corpus = [dictionary.doc2bow(letter) for letter in letters]
 	print("Gensim corpus of BOWs initialized.")
@@ -264,16 +225,16 @@ def model(n_topics, alpha=None, beta=None, saved=False, pyldavis=False, wordclou
 	def verify_alpha(lda_model, given):
 		actual: list = lda_model.alpha
 		if given == "asymmetric":
-			return actual[0] != actual[-1]
+			return not np.isclose(actual[0], actual[-1])
 		elif given == "symmetric":
-			return actual[0] == actual[-1]
+			return np.isclose(actual[0], actual[-1])
 		else:
-			return actual[0] == actual[-1] == given
+			return np.isclose(given, actual[0]) and np.isclose(given, actual[-1])
 	
 	def verify_beta(lda_model, given):
 		actual = lda_model.eta
 		if type(given) == float:
-			return actual[0] == actual[-1] == given
+			return np.isclose(given, actual[0]) and np.isclose(given, actual[-1]) # basic == comparison doesn't work bc floats suck
 		else:
 			return False
 
@@ -297,9 +258,10 @@ def model(n_topics, alpha=None, beta=None, saved=False, pyldavis=False, wordclou
 			alpha=alpha if alpha is not None else "symmetric", # default
 			eta=beta,
 			random_state=1,
-			iterations=80,
+			iterations=100,
 			eval_every=5,
-			workers=3
+			workers=3,
+			per_word_topics=True
 		)
 
 		lda.save(f"{TRAINED_LDA}{n_topics}")
@@ -389,44 +351,6 @@ def compare_models(k_values: list, alpha_values: list, beta_values: list) -> pd.
 	return results, df_results
 
 """
-plot coherence and silhouette scores for candidate models
-receives: results dict (output of compare_models)
-"""
-def plot_metrics(results: list) -> None:
-	fig, (ax1, ax2) = plt.subplots(2, 1)
-	ax1.plot(results["topics"], results["coherence"], label="coherence score", marker=".", color="slateblue")
-	ax2.plot(results["topics"], results["silhouette"], label = "avg silhouette score", marker=".", color="purple")
-	ax1.set_ylabel("Coherence")
-	ax2.set_ylabel("Silhouette")
-	ax2.set_xlabel("Topics")
-	ax1.grid(True)
-	ax2.grid(True)
-	plt.savefig(f"{GRAPHS_PATH}metrics_per_num_topics.png")
-
-	print("Saved plot of metrics comparison between different numbers of topics.")
-	plt.close("all")
-
-"""
-generates and saves wordclouds per topic of a given LDA model
-receives: vw dataframe with "main" column
-"""
-def save_topic_wordclouds(vw: pd.DataFrame) -> None:
-	assert "main" in vw.columns
-
-	for i in range(n_topics):
-		letters: pd.Series = vw[vw["main"] == i]["text"]
-		all_letters = concat_all_letters(letters)
-		wordcloud = WordCloud(width=600, height=500, background_color="white", max_words=300).generate(all_letters)
-		plt.imshow(wordcloud, interpolation="bilinear")
-		plt.axis("off")
-		plt.savefig(f"{TOPIC_WORDCLOUDS_PATH}wordcloud_lda{n_topics}_topic{i}.png")
-		plt.clf()
-
-	print("Saved topic wordclouds for LDA model.")
-	plt.close("all")
-
-
-"""
 function that includes main topic column in vw dataframe, or -1 if all topics have the same probability
 receives: vw (original dataset); vws (topics distribution dataframe)
 """
@@ -444,216 +368,6 @@ def set_main_topics(vw: pd.DataFrame, vws: pd.DataFrame) -> (pd.DataFrame, pd.Da
 	vw["main"] = vws["main"]
 	return vw, vws
 
-"""
-function that makes a bar graph of topic frequencies per years
-receives: vw dataframe with "main" topic column
-"""
-def plot_topics_per_year(vw: pd.DataFrame) -> None:
-	assert "main" in vw.columns
-
-	yearly: pd.DataFrame = vw[(vw["main"] != -1) & vw["year"].notnull()][["year", "main"]]
-	yearly = yearly.sort_values(by="year")
-	yearly["year"] = pd.to_numeric(yearly["year"], downcast="integer")
-
-	for i in range(n_topics):
-		yearly[str(i)] = yearly["year"].apply(lambda y: len(yearly[(yearly["year"] == y) & (yearly["main"] == i)]))
-
-	yearly = yearly.drop(["main"], axis=1).drop_duplicates(subset=["year"], keep="first")
-
-	fig, ax = plt.subplots(1, 1, figsize=(14,7))
-	years = list(yearly["year"])
-	xrange = list(range(len(years)))
-	colors = [cm.rainbow(float(i)/n_topics) for i in range(n_topics)]
-	labels = [f"Topic {i}" for i in range(n_topics)]
-
-	# make bar graphs
-	for i in range(n_topics):
-		if i == 0:
-			btm = 0
-
-		else: # calculate bottom
-			sum: pd.Series = yearly["0"]
-			for j in range(1, i):
-				sum = sum + yearly[str(j)]
-
-			btm = list(sum)
-
-		ax.bar(x=xrange, height=yearly[str(i)], width=0.8, bottom=btm, color=colors[i], align="center", label=labels[i])
-
-	plt.xticks(ticks=range(len(years)), labels=years, rotation="vertical")
-	plt.tick_params(axis="y", left=True, right=True, labelleft=True, labelright=True)
-	plt.legend()
-	plt.grid(True, axis="y")
-	ax.set_axisbelow(True)
-	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_year.png")
-	plt.close("all")
-
-"""
-function that makes 12 pie charts for topic frequencies in letters to the top 12 recipients
-receives: vw dataframe with "main" topic column
-"""
-def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
-	assert "main" in vw.columns
-
-	recs = vw[(vw["recipient"].notnull()) & (vw["main"] != -1)][["recipient", "main"]]
-
-	for i in range(n_topics):
-		recs[str(i)] = recs["recipient"].apply(lambda rec: len(recs[(recs["recipient"] == rec) & (recs["main"] == i)]))
-
-	recs = recs.drop(["main"], axis=1).drop_duplicates(subset=["recipient"], keep="first")
-
-	top_recs = vw[vw["recipient"].notnull()][["recipient"]]
-	top_recs = top_recs.reset_index().groupby(["recipient"]).count()[["index"]].rename(columns={"index": "num_letters"})
-	top_recs = top_recs.sort_values(by="num_letters", ascending=False)
-
-	recs = recs.merge(top_recs, on="recipient", how="left")
-	top_recs_list = list(recs.sort_values(by="num_letters", ascending=False)["recipient"][:12])
-
-	fig, axs = plt.subplots(3, 4, figsize=(14, 9))
-	colors = [cm.rainbow(float(i)/n_topics) for i in range(n_topics)]
-	columns = [str(i) for i in range(n_topics)]
-
-	it = 0
-	for i in range(3):
-		for j in range(4):
-			rec: str = top_recs_list[it]
-			row = recs[recs["recipient"] == rec][columns]
-			values = [int(row[col]) for col in row.columns]
-			axs[i,j].pie(values, colors=colors, labels=columns, labeldistance=0.5)
-			axs[i,j].set_xlabel(rec)
-			it += 1
-
-	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_recipient.png")
-	plt.close("all")
-
-"""
-makes scatter plot comparing models by alpha and beta
-"""
-def plot_results_old(results: pd.DataFrame):
-	results["num_topics"] = pd.to_numeric(results["num_topics"], downcast="integer")
-	n_subplots = 3
-
-	alpha_markers = {
-		"asymmetric": "*", # asterisk: (5, 2)
-		"symmetric": "o", # ?
-		"0.3": "^", # triangle
-		"0.5": (5, 0), # pentagon
-		"0.7": "+"
-	}
-
-	beta_colors = {beta : cm.viridis.reversed()(beta) for beta in set(results["beta"])}
-
-	fig = plt.figure(figsize=(8,8))
-	gs = fig.add_gridspec(nrows=3, ncols=2, width_ratios=[7, 0.2], height_ratios=[2.5, 2.5, 2.5], hspace=0.5, wspace=0.1)
-	axs = [] # actual scatter plot axes
-	axs.append(fig.add_subplot(gs[0, 0]))
-	axs.append(fig.add_subplot(gs[1, 0], sharex=axs[0], sharey=axs[0]))
-	axs.append(fig.add_subplot(gs[2, 0], sharex=axs[0], sharey=axs[0]))
-	axc = fig.add_subplot(gs[:,1]) # ax for the colorbar
-
-	for n_topics in [3, 4, 5]:
-		results_t = results[results["num_topics"] == n_topics]
-		i = n_topics - n_subplots # axis index
-		for index, row in results_t.iterrows():
-			axs[i].plot(
-				row["silhouette"],
-				row["coherence"],
-				marker=alpha_markers[row["alpha"]],
-				color=beta_colors[row["beta"]],
-				markersize=8
-			)
-			axs[i].grid(True, axis="both", alpha=0.2)
-			axs[i].set_title(f"k = {n_topics}", loc="left")
-
-	legend_elems = []
-	for label, marker in list(alpha_markers.items()):
-		legend_elems.append(Line2D([0], [0], marker=marker, color="white", markeredgecolor="grey", markerfacecolor="grey", markersize=10, label=label))
-
-	axs[0].tick_params(axis="both", bottom=True, left=True, labelbottom=True, labelleft=True, right=True, labelright=True)
-	axs[1].tick_params(axis="both", bottom=True, left=True, labelbottom=True, labelleft=True, right=True, labelright=True)
-	axs[2].tick_params(axis="both", bottom=True, left=True, labelbottom=True, labelleft=True, right=True, labelright=True)
-	axs[2].set_xlabel("average silhouette coefficient", fontsize="large")
-	axs[1].set_ylabel("coherence score", fontsize="large")
-	axs[0].legend(handles=legend_elems, framealpha=1, loc="upper left", edgecolor="black", title="alpha", fancybox=False, fontsize="small")
-
-
-	cb = mpl.colorbar.ColorbarBase(axc, cmap=cm.viridis.reversed(), norm=mpl.colors.Normalize(vmin=0, vmax=1), orientation="vertical")
-	axc.set_xlabel("beta", fontsize="large")
-	plt.show()
-
-
-def plot_results(results: pd.DataFrame):
-	results = results[results["beta"] != "auto"]
-
-	alpha_markers = {
-		"asymmetric": "*", # star
-		"symmetric": "o",
-		"0.3": "^", # triangle
-		"0.5": (5, 0), # pentagon
-		"0.7": "+"
-	}
-
-	beta_colors = {beta : cm.rainbow(beta) for beta in set(results["beta"])}
-
-	results["num_topics"] = pd.to_numeric(results["num_topics"], downcast="integer")
-	results.sort_values(by=["silhouette", "coherence", "beta"], ascending=[False, False, False])
-	k_values = [3, 4, 5, 6]
-	n_subplots = len(k_values)
-
-	fig, axs = plt.subplots(nrows=3, ncols=2, sharex=True, sharey=True, figsize=(6,10))
-	plt.subplots_adjust(hspace=0.6, wspace=0.3)
-
-	gs = axs[2,0].get_gridspec()
-	axs[2,0].remove()
-	axs[2,1].remove()
-	axl = fig.add_subplot(gs[2:, :])
-	axl.tick_params(axis="both", left=False, bottom=False, labelbottom=False, labelleft=False)
-	axl.axis(False)
-
-	# later
-	axs = [axs[0,0], axs[0,1], axs[1,0], axs[1,1]] # flatten
-
-	for i in range(n_subplots):
-			n_topics = k_values[i]
-			results_t = results[results["num_topics"] == n_topics]
-			for index, row in results_t.iterrows():
-				ax = axs[i] # easier to change later
-				ax.plot(
-					row["silhouette"],
-					row["coherence"],
-					marker=alpha_markers[row["alpha"]],
-					color=beta_colors[row["beta"]],
-					markersize=8
-				)
-				ax.set_title(f"K = {n_topics}", loc="center")
-				ax.tick_params(axis="both", left=False, bottom=False, labelleft=True, labelbottom=True, labelsize="small")
-				ax.grid(axis="both", color="grey", alpha=0.5)
-
-	# fig.text(0.5, 0.04, "Silhouette", ha="center")
-	# fig.text(0.04, 0.5, "Coherence", va="center", rotation="vertical")
-	axs[0].set_ylabel("Coherence")
-	axs[2].set_ylabel("Coherence")
-	axs[2].set_xlabel("Silhouette")
-	axs[3].set_xlabel("Silhouette")
-
-	legend_elems = []
-	legend_elems.append(Line2D([0], [0], marker="s", color="white", markerfacecolor="white", markeredgecolor="white", label="ALPHA")) # first title
-
-	for label, marker in list(alpha_markers.items()): # legend for alpha markers
-		legend_elems.append(Line2D([0], [0], marker=marker, color="white", markeredgecolor="grey", markerfacecolor="grey", markersize=10, label=label))
-
-	legend_elems.append(Line2D([0], [0], marker="s", color="white", markerfacecolor="white", markeredgecolor="white", label="BETA")) # second title
-	for label, color in list(beta_colors.items()): # legend for beta colors (squares in given color)
-		legend_elems.append(Line2D([0], [0], marker="s", color="white", markeredgecolor=color, markerfacecolor=color, markersize=10, label=label))
-
-	axl.legend(handles=legend_elems, framealpha=1, loc="upper center", edgecolor="grey", fontsize="small", ncol=4, borderpad=1)
-
-	# hide leading zeroes (makes tick labels unchangeable; must adjust figsize first)
-	# axs[0].set_yticklabels([str(x)[1:] for x in np.round(ax.get_yticks(), 3)])
-	# axs[0].set_xticklabels([str(x)[1:] for x in np.round(ax.get_xticks(), 3)])
-
-	plt.show()
-
 # --------------------------------------------------------------------------
 
 vw = read_dataframe(VW_PREPROCESSED)
@@ -661,30 +375,24 @@ print("Pre-processed VW dataset successfully imported.")
 vw, letters, corpus, dictionary = build_letter_corpus(vw)
 vws = pd.DataFrame() # global var
 
-n_topics = -1 # global var
-# _, results_df = compare_models(
-# 	k_values=[3, 4, 5],
-# 	alpha_values=["asymmetric"],
-# 	beta_values=["auto"]
-# )
-
-# plot results
-# results1 = pd.read_csv("reports/logs/comparison_results_1572102344.csv", index_col="index")
-# results2 = pd.read_csv("reports/logs/comparison_results_1572118571.csv", index_col="index")
-# results = results1.append(results2, ignore_index=True)
-# results = results.sort_values(by=["silhouette", "coherence"], ascending=[False, False])
-# results.to_csv("reports/logs/comparison_results.csv", index_label="index")
-# plot_results(results)
-
-"""
-eval
-"""
-n_topics = 3
-
-lda3a9 = model(3, alpha="asymmetric", beta=0.9, saved=False, pyldavis=True)["model"]
-
-n_topics = 4
-lda4a9 = model(4, alpha="asymmetric", beta=0.9, saved=False, pyldavis=True)["model"]
-
 n_topics = 5
-lda5a9 = model(5, alpha="asymmetric", beta=0.9, saved=False, pyldavis=True)["model"]
+
+W = len(dictionary)
+K = n_topics
+N = len(corpus)
+pwt = np.zeros((W, K, N))
+
+lda5a9 = model(n_topics, alpha="asymmetric", beta=0.9, saved=False)["model"]
+
+# TODO: create this inside model(); pwt needs to be initialized before get_topic_dists_dataframe is called
+# # topics x words x documents 3d matrix
+# to access a single line: [pwt[w][k][n] for i in range(K)] fix 2 and vary 1, or fix 1 and vary 2
+
+save_topic_wordclouds(pwt)
+
+"""
+compare results
+"""
+# results = pd.read_csv("reports/logs/comparison_results.csv", index_col="index")
+# plot_metrics(results, variable="num_topics", fixed_alpha="asymmetric", fixed_beta=0.9)
+# plot_results(results)

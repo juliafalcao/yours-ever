@@ -4,6 +4,7 @@ import pandas as pd
 import codecs
 from constants import *
 from datetime import datetime
+from sklearn.metrics import silhouette_samples, silhouette_score
 
 """
 function that receives a letter index and returns the original letter text a string
@@ -50,7 +51,9 @@ def concat_all_letters(letters: pd.Series):
 	all_letters = letters.str.cat(sep=" ")
 	return all_letters
 
-
+"""
+save something into a file inside reports/logs/
+"""
 def log(something, filename: str):
 	printable = str(something)
 
@@ -62,11 +65,9 @@ def log(something, filename: str):
 	
 	return
 
-def get_timestamp():
-	dt = datetime.now()
-	return f"{dt.day}-{dt.month}T{timestamp.hour}:{timestamp.minute}"
-
-
+"""
+function that returns a standard-format lda model name such as lda3-a-9 for lda with k = 3, alpha = asymmetric and beta = 0.9
+"""
 def get_model_name(lda_model):
 	k = lda_model.num_topics
 
@@ -79,3 +80,12 @@ def get_model_name(lda_model):
 	beta = str(lda_model.eta[0])[2:] # symmetric beta
 
 	return f"lda{3}-{alpha}-{beta}"
+
+"""
+compute average silhouette score
+"""
+def compute_avg_silhouette(topic_df: pd.DataFrame) -> float:
+	points = topic_df.values
+	mains = points.argmax(axis=1)
+
+	return silhouette_score(points, mains)
