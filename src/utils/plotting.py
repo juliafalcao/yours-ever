@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import pandas as pd
 import numpy as np
 import matplotlib as mpl
@@ -65,9 +67,9 @@ def plot_metrics(results: pd.DataFrame, variable="num_topics", fixed_alpha=None,
 		df = df[df["alpha"] == fixed_alpha]
 	
 	if fixed_beta is not None:
-		df = df[df["beta"] == str(fixed_beta)]
+		df = df[df["beta"] == fixed_beta]
 
-	color = cm.viridis(0.6)
+	color = cm.rainbow(0.3)
 
 	fig, (ax1, ax2) = plt.subplots(2, 1)
 	ax1.plot(df["num_topics"], df["coherence"], label="Coerência (média)", color=color, marker="o", markerfacecolor="white", markeredgecolor=color)
@@ -104,26 +106,6 @@ def save_topic_wordclouds_by_frequency(vw: pd.DataFrame) -> None:
 	print("Saved topic wordclouds for LDA model.")
 	plt.close("all")
 
-"""
-wordclouds using word contribution per topic instead of absolute word frequency
-"""
-def save_topic_wordclouds(pwt: np.ndarray) -> None:
-	n_topics = pwt.shape[1] # shape = (W, K, N)
-	wt = np.nanmean(pwt, axis=2)
-	for k in range(n_topics):
-		W = pwt.shape[0]
-		k_wt = [wt[w][k] for w in range(W)]
-		global dictionary
-		wc = {dictionary.id2token[word_id]:k_wt[word_id] for word_id in range(W) if not np.isclose(k_wt[word_id], 0.0)}
-		# wc = {'impressionist': 3.413682311567001e-06, 'medieval': 2.825361179610411e-06, ...}
-		wordcloud = WordCloud(width=600, height=500, background_color="white", max_words=300)
-		wordcloud.generate_from_frequencies(wc)
-		plt.imshow(wordcloud, interpolation="bilinear")
-		plt.axis("off")
-		plt.savefig(f"{TOPIC_WORDCLOUDS_PATH}wordcloud_lda{n_topics}_topic{k}.png")
-		plt.clf()
-	print("Saved topic wordclouds for LDA model.")
-	plt.close("all")
 
 """
 function that makes a bar graph of topic frequencies per years
@@ -147,7 +129,7 @@ def plot_topics_per_year(vw: pd.DataFrame) -> None:
 	years = list(yearly["year"])
 	xrange = list(range(len(years)))
 	colors = [cm.rainbow(float(i)/n_topics) for i in range(n_topics)]
-	labels = [f"Topic {i}" for i in range(n_topics)]
+	labels = [f"Tópico #{i}" for i in range(n_topics)]
 
 	# make bar graphs
 	for i in range(n_topics):
@@ -165,10 +147,13 @@ def plot_topics_per_year(vw: pd.DataFrame) -> None:
 
 	plt.xticks(ticks=range(len(years)), labels=years, rotation="vertical")
 	plt.tick_params(axis="y", left=True, right=True, labelleft=True, labelright=True)
+	plt.xlabel("Ano")
+	plt.ylabel("Número de cartas")
 	plt.legend()
 	plt.grid(True, axis="y")
 	ax.set_axisbelow(True)
-	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_year.png")
+	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_year.png") # UTF-8 doesn't work
+	# plt.show()
 	plt.close("all")
 
 """
@@ -194,8 +179,9 @@ def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
 	recs = recs.merge(top_recs, on="recipient", how="left")
 	top_recs_list = list(recs.sort_values(by="num_letters", ascending=False)["recipient"][:12])
 
-	fig, axs = plt.subplots(3, 4, figsize=(14, 9))
-	colors = [cm.plasma(float(i)/n_topics) for i in range(n_topics)]
+	fig, axs = plt.subplots(3, 4, figsize=(13, 9))
+	plt.subplots_adjust(wspace=0.5, hspace=0.5)
+	colors = [cm.rainbow(float(i)/n_topics) for i in range(n_topics)]
 	columns = [str(i) for i in range(n_topics)]
 
 	it = 0
@@ -204,11 +190,11 @@ def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
 			rec: str = top_recs_list[it]
 			row = recs[recs["recipient"] == rec][columns]
 			values = [int(row[col]) for col in row.columns]
-			axs[i,j].pie(values, colors=colors, labels=columns, labeldistance=0.5)
+			axs[i,j].pie(values, colors=colors, labels=columns, labeldistance=0.7)
 			axs[i,j].set_xlabel(rec)
 			it += 1
 
-	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_recipient.png")
+	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_recipient.png") # UTF-8 doesn't work
 	plt.close("all")
 
 """
@@ -225,7 +211,7 @@ def plot_results(results: pd.DataFrame):
 		"0.7": "d" # thin diamond
 	}
 
-	beta_colors = {beta : cm.viridis.reversed()(float(beta)) for beta in set(results["beta"])}
+	beta_colors = {beta : cm.rainbow(float(beta)) for beta in set(results["beta"])}
 
 	results["num_topics"] = pd.to_numeric(results["num_topics"], downcast="integer")
 	results.sort_values(by=["silhouette", "coherence", "beta"], ascending=[False, False, False])

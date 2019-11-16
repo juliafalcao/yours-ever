@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import unicode_literals
 import sys, codecs
 import pandas as pd
 import numpy as np
@@ -163,7 +163,7 @@ def save_random_letters(vws: pd.DataFrame, n_letters: int = 3, recipient: str = 
 
 		for letter_id in chosen_ids:
 			vwo_row: pd.Series = vwo.loc[letter_id]
-			vwo_row["tokens"] = vws.at[letter_id, "text"] # save also actual tokens used in model
+			vwo_row["tokens"] = vw.at[letter_id, "text"] # save also actual tokens used in model
 			vwo_row.to_csv(f"{LDA_LETTERS_PATH}lda{n_topics}_topic{t}{suffix}_random{letter_id}_{suffix}.csv", sep=":", header=True)
 
 	print(f"Saved {n_letters} random letters for each topic of LDA model.")
@@ -177,13 +177,9 @@ def build_letter_corpus(vw: pd.DataFrame) -> (pd.DataFrame, list, list, corpora.
 	vw = vw.sort_index(axis=0)
 	letters = list(vw["text"]) # each line is a tokenized letter
 	dictionary = corpora.Dictionary(letters)
-
-	"""
-	remove extremes (most frequent and least frequent) tokens
-	"""
 	original_dict = deepcopy(dictionary) # for logging purposes
 	original_tokens = [original_dict[id] for id in original_dict]
-	dictionary.filter_extremes(no_above=0.1, no_below=IGNORE) # remove most frequent
+	dictionary.filter_extremes(no_above=0.07, no_below=IGNORE) # remove most frequent
 	tokens_without_frequent = [dictionary[id] for id in dictionary]
 	removed_frequent = [token for token in original_tokens if token not in tokens_without_frequent]
 	log(removed_frequent, "removed_frequent_tokens")
@@ -243,9 +239,9 @@ def model(n_topics, alpha=None, beta=None, saved=False, pyldavis=False, wordclou
 	if saved:
 		lda = LdaMulticore.load(f"{TRAINED_LDA}{n_topics}")
 
-		if not (verify_alpha(lda, alpha) and verify_beta(lda, beta)):
-			print("Loaded model didn't pass parameter verification; train it from scratch or load the correct one.")
-			return
+		# if not (verify_alpha(lda, alpha) and verify_beta(lda, beta)):
+			# print("Loaded model didn't pass parameter verification; train it from scratch or load the correct one.")
+			# return
 
 		print(f"Trained LDA model with {n_topics} topics loaded successfully.")
 
@@ -266,6 +262,16 @@ def model(n_topics, alpha=None, beta=None, saved=False, pyldavis=False, wordclou
 
 		lda.save(f"{TRAINED_LDA}{n_topics}")
 		print(f"LDA model with {n_topics} topics trained and saved successfully.")
+
+	"""
+	save per-word-topics 3D matrix
+	[!] alters global variable
+	"""
+	V = len(dictionary)
+	K = n_topics
+	N = len(corpus)
+	global pwt
+	pwt = np.zeros((V, K, N))
 
 	"""
 	save topic assignment info in dataframes
@@ -296,7 +302,7 @@ def model(n_topics, alpha=None, beta=None, saved=False, pyldavis=False, wordclou
 		save_representative_letters(vws, 3)
 	
 	if wordclouds:
-		save_topic_wordclouds(vw)
+		save_topic_wordclouds(pwt)
 
 	if plots:	
 		plot_topics_per_year(vw)
@@ -368,27 +374,51 @@ def set_main_topics(vw: pd.DataFrame, vws: pd.DataFrame) -> (pd.DataFrame, pd.Da
 	vw["main"] = vws["main"]
 	return vw, vws
 
+"""
+wordclouds using word contribution per topic instead of absolute word frequency
+"""
+def save_topic_wordclouds(pwt: np.ndarray) -> None:
+	n_topics = pwt.shape[1] # shape = (V, K, N)
+	wt = np.nanmean(pwt, axis=2)
+	for k in range(n_topics):
+		W = pwt.shape[0]
+		k_wt = [wt[w][k] for w in range(W)]
+		global dictionary
+		wc = {dictionary.id2token[word_id]:k_wt[word_id] for word_id in range(W) if not np.isclose(k_wt[word_id], 0.0)}
+		# wc = {'impressionist': 3.413682311567001e-06, 'medieval': 2.825361179610411e-06, ...}
+		wordcloud = WordCloud(width=600, height=500, background_color="white", max_words=300, colormap="rainbow")
+		wordcloud.generate_from_frequencies(wc)
+		plt.imshow(wordcloud, interpolation="bilinear")
+		plt.axis("off")
+		plt.savefig(f"{TOPIC_WORDCLOUDS_PATH}wordcloud_lda{n_topics}_topic{k}.png")
+		plt.clf()
+	print("Saved topic wordclouds for LDA model.")
+	plt.close("all")
+
 # --------------------------------------------------------------------------
 
 vw = read_dataframe(VW_PREPROCESSED)
 print("Pre-processed VW dataset successfully imported.")
 vw, letters, corpus, dictionary = build_letter_corpus(vw)
 vws = pd.DataFrame() # global var
+pwt = []
+
+n_topics = 3
+pwt = [] # global var
+lda3a9 = model(n_topics, alpha="asymmetric", beta=0.9, wordclouds=True, rep_letters=True, plots=True)["model"]
+
+n_topics = 3
+pwt = [] # global var
+lda4a9 = model(n_topics, alpha="asymmetric", beta=0.9, wordclouds=True, rep_letters=True, plots=True)["model"]
 
 n_topics = 5
+pwt = [] # global var
+lda5a9 = model(n_topics, alpha="asymmetric", beta=0.9, wordclouds=True, rep_letters=True, plots=True)["model"]
 
-W = len(dictionary)
-K = n_topics
-N = len(corpus)
-pwt = np.zeros((W, K, N))
+n_topics = 7
+pwt = [] # global var
+lda7a9 = model(n_topics, alpha="asymmetric", beta=0.9, wordclouds=True, rep_letters=True, plots=True)["model"]
 
-lda5a9 = model(n_topics, alpha="asymmetric", beta=0.9, saved=False)["model"]
-
-# TODO: create this inside model(); pwt needs to be initialized before get_topic_dists_dataframe is called
-# # topics x words x documents 3d matrix
-# to access a single line: [pwt[w][k][n] for i in range(K)] fix 2 and vary 1, or fix 1 and vary 2
-
-save_topic_wordclouds(pwt)
 
 """
 compare results
@@ -396,3 +426,8 @@ compare results
 # results = pd.read_csv("reports/logs/comparison_results.csv", index_col="index")
 # plot_metrics(results, variable="num_topics", fixed_alpha="asymmetric", fixed_beta=0.9)
 # plot_results(results)
+
+"""
+compare models (again)
+"""
+plot_results(results)
