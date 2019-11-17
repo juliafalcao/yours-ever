@@ -27,6 +27,7 @@ constants
 """
 # N_MOST_FREQUENT_TO_REMOVE: int = 150
 IGNORE: int = 1
+NO_ABOVE_PERCENTAGE: float = 0.08
 
 """
 prints topics as word distributions
@@ -179,7 +180,7 @@ def build_letter_corpus(vw: pd.DataFrame) -> (pd.DataFrame, list, list, corpora.
 	dictionary = corpora.Dictionary(letters)
 	original_dict = deepcopy(dictionary) # for logging purposes
 	original_tokens = [original_dict[id] for id in original_dict]
-	dictionary.filter_extremes(no_above=0.07, no_below=IGNORE) # remove most frequent
+	dictionary.filter_extremes(no_above=NO_ABOVE_PERCENTAGE, no_below=IGNORE, keep_tokens=["press", "article"]) # remove most frequent
 	tokens_without_frequent = [dictionary[id] for id in dictionary]
 	removed_frequent = [token for token in original_tokens if token not in tokens_without_frequent]
 	log(removed_frequent, "removed_frequent_tokens")
@@ -314,7 +315,9 @@ def model(n_topics, alpha=None, beta=None, saved=False, pyldavis=False, wordclou
 		"alpha": alpha,
 		"beta": beta,
 		"coherence": coherence,
-		"silhouette": avg_silhouette
+		"silhouette": avg_silhouette,
+		"vws": vws,
+		"pwt": pwt
 		}
 
 
@@ -329,7 +332,7 @@ returns: results dataframe
 def compare_models(k_values: list, alpha_values: list, beta_values: list) -> pd.DataFrame:
 	timestamp = int(time())
 	results: list = []
-	df_results = pd.DataFrame({"num_topics": [], "alpha": [], "beta": [], "coherence": [], "silhouette": []})
+	df_results = pd.DataFrame({"num_topics": [], "alpha": [], "beta": [], "no_above": [], "coherence": [], "silhouette": []})
 
 	for num_topics in k_values:
 		global n_topics
@@ -347,6 +350,7 @@ def compare_models(k_values: list, alpha_values: list, beta_values: list) -> pd.
 			"num_topics": result["num_topics"],
 			"alpha": result["alpha"],
 			"beta": result["beta"],
+			"no_above": NO_ABOVE_PERCENTAGE,
 			"coherence": result["coherence"],
 			"silhouette": result["silhouette"]
 		}, ignore_index=True)
@@ -386,7 +390,7 @@ def save_topic_wordclouds(pwt: np.ndarray) -> None:
 		global dictionary
 		wc = {dictionary.id2token[word_id]:k_wt[word_id] for word_id in range(W) if not np.isclose(k_wt[word_id], 0.0)}
 		# wc = {'impressionist': 3.413682311567001e-06, 'medieval': 2.825361179610411e-06, ...}
-		wordcloud = WordCloud(width=600, height=500, background_color="white", max_words=300, colormap="rainbow")
+		wordcloud = WordCloud(width=600, height=500, background_color="white", max_words=300, colormap="plasma")
 		wordcloud.generate_from_frequencies(wc)
 		plt.imshow(wordcloud, interpolation="bilinear")
 		plt.axis("off")
@@ -394,6 +398,7 @@ def save_topic_wordclouds(pwt: np.ndarray) -> None:
 		plt.clf()
 	print("Saved topic wordclouds for LDA model.")
 	plt.close("all")
+
 
 # --------------------------------------------------------------------------
 
@@ -403,31 +408,21 @@ vw, letters, corpus, dictionary = build_letter_corpus(vw)
 vws = pd.DataFrame() # global var
 pwt = []
 
-n_topics = 3
-pwt = [] # global var
-lda3a9 = model(n_topics, alpha="asymmetric", beta=0.9, wordclouds=True, rep_letters=True, plots=True)["model"]
-
-n_topics = 3
-pwt = [] # global var
-lda4a9 = model(n_topics, alpha="asymmetric", beta=0.9, wordclouds=True, rep_letters=True, plots=True)["model"]
+n_topics = 4
+m4a9 = model(n_topics, alpha="asymmetric", beta=0.9, saved=False, wordclouds=True, rep_letters=True, plots=True)
+lda4a9 = m4a9["model"]
 
 n_topics = 5
-pwt = [] # global var
-lda5a9 = model(n_topics, alpha="asymmetric", beta=0.9, wordclouds=True, rep_letters=True, plots=True)["model"]
-
-n_topics = 7
-pwt = [] # global var
-lda7a9 = model(n_topics, alpha="asymmetric", beta=0.9, wordclouds=True, rep_letters=True, plots=True)["model"]
+m5a9 = model(n_topics, alpha="asymmetric", beta=0.9, saved=False, wordclouds=True, rep_letters=True, plots=True)
+lda5a9 = m5a9["model"]
+save_random_letters(m5a9["vws"], n_letters=5)
 
 
-"""
+
+""" 
 compare results
 """
-# results = pd.read_csv("reports/logs/comparison_results.csv", index_col="index")
+
+# models, results = compare_models(k_values=[3, 4, 5, 6, 7, 8, 9, 10], alpha_values=["asymmetric", "symmetric", 0.3, 0.5, 0.7], beta_values=[0.2, 0.4, 0.6, 0.8, 0.9, "auto"])
 # plot_metrics(results, variable="num_topics", fixed_alpha="asymmetric", fixed_beta=0.9)
 # plot_results(results)
-
-"""
-compare models (again)
-"""
-plot_results(results)

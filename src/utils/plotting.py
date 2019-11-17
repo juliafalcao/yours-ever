@@ -10,7 +10,6 @@ import pyLDAvis.gensim
 from sklearn.metrics import silhouette_samples, silhouette_score
 from wordcloud import WordCloud
 from matplotlib.lines import Line2D
-from matplotlib.ticker import FormatStrFormatter
 
 from constants import *
 from utils import *
@@ -29,9 +28,7 @@ def plot_silhouette(vws: pd.DataFrame) -> float:
 	fig, ax1 = plt.subplots(1, 1)
 	samples_silhouette_values = silhouette_samples(points, mains)
 	y_lower = 10 # ?
-
 	n_topics = len(set(vws["main"]))
-
 	for i in range(n_topics):
 		ith_topic_silhouette_values = samples_silhouette_values[mains == i]
 		ith_topic_silhouette_values.sort()
@@ -41,18 +38,16 @@ def plot_silhouette(vws: pd.DataFrame) -> float:
 		ax1.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_topic_silhouette_values, facecolor=color, edgecolor=color, alpha=0.7)
 		ax1.text(-0.05, y_lower + 0.5 * size_topic_i, str(i))
 		y_lower = y_upper + 10
-
-	ax1.set_title("Silhouette plot for " + str(n_topics) + " topics")
-	ax1.set_xlabel("Silhouette coefficient")
-	ax1.set_ylabel("Topic number")
+	# ax1.set_title("Silhouette plot for " + str(n_topics) + " topics")
+	ax1.set_xlabel("Coeficiente de silhueta")
+	ax1.set_ylabel("Tópico")
 	silhouette_avg = compute_avg_silhouette(vws)
-	ax1.axvline(x=silhouette_avg, color="red", linestyle="--")
+	ax1.axvline(x=silhouette_avg, color="orangered", linestyle="--")
 	ax1.set_yticks([])
-	ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1]) # ?
-	plt.savefig(f"{SILHOUETTE_PLOTS_PATH}silhouette_lda{n_topics}.png")
+	# ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1]) # ?
+	plt.savefig(f"{SILHOUETTE_PLOTS_PATH}silhouette_lda{n_topics}.png", format="png")
 	print("New silhouette plot generated and saved.")
 	plt.close("all")
-
 	return silhouette_avg
 
 """
@@ -164,7 +159,6 @@ def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
 	assert "main" in vw.columns
 
 	n_topics = len(set(vw["main"]))
-
 	recs = vw[(vw["recipient"].notnull()) & (vw["main"] != -1)][["recipient", "main"]]
 
 	for i in range(n_topics):
@@ -179,6 +173,9 @@ def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
 	recs = recs.merge(top_recs, on="recipient", how="left")
 	top_recs_list = list(recs.sort_values(by="num_letters", ascending=False)["recipient"][:12])
 
+	rec_info = pd.read_csv("data/external/recipients.txt", sep=",")
+	rec_info = rec_info.set_index("recipient")
+
 	fig, axs = plt.subplots(3, 4, figsize=(13, 9))
 	plt.subplots_adjust(wspace=0.5, hspace=0.5)
 	colors = [cm.rainbow(float(i)/n_topics) for i in range(n_topics)]
@@ -188,10 +185,11 @@ def plot_topics_per_recipient(vw: pd.DataFrame) -> None:
 	for i in range(3):
 		for j in range(4):
 			rec: str = top_recs_list[it]
+			rec_desc = rec_info.at[rec,"description"]
 			row = recs[recs["recipient"] == rec][columns]
 			values = [int(row[col]) for col in row.columns]
 			axs[i,j].pie(values, colors=colors, labels=columns, labeldistance=0.7)
-			axs[i,j].set_xlabel(rec)
+			axs[i,j].set_xlabel(f"{rec}\n{rec_desc}")
 			it += 1
 
 	plt.savefig(f"{GRAPHS_PATH}lda{n_topics}_topic_frequency_per_recipient.png") # UTF-8 doesn't work
