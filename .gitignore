@@ -1,6 +1,9 @@
 .vscode/
 __pycache__/
-/data/
+data/interim/old/
+data/raw/
+data/processed/
+data/external/
 /models/
 reports/graphs/tfidf/
 reports/graphs/yearly_wordclouds/
